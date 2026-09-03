@@ -72,9 +72,16 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 | Max gap | **0.8s** | 0.6-1.0 all give the same answer |
 | Min segment | **0.0s** | Any floor deletes real short appearances from shared shots |
 | Tracking IDs | Hint only, never identity | ML Kit tracking is motion-based, not recognition |
+| Pupil span | **0.31** of crop width | Prototype's 0.42 was for outer eye corners; ML Kit gives pupils (~70% span) |
+| Eye ordering | Sort by image x | ML Kit names eyes by the subject's side; trusting the names flips the face 180° |
 
 ## Notes / blockers
-- Threshold stays `TBD` until the Step 1.5 sweep runs. Nothing downstream is tuned before then.
+- First on-device run (LAVA LXX503, Android 14) reached results but grouped one man as three
+  people. Cause: the alignment port treated ML Kit's subject-relative eye names as image-relative,
+  embedding every face upside down at 1.4x the intended zoom. Fixed in `FaceAligner`; thresholds
+  were never the problem and are unchanged. Needs one more on-device run to confirm 5 / 20.
+- Crash at 100% was `AnimatedContent` re-rendering the outgoing Processing screen against a state
+  that had already become `Done`. Screens now carry their own payload. Fixed, confirmed on-device.
 
 ## Validation against the brief (computed, not hardcoded)
 - Brief says A+B share frame at 10.1-11.5s. Detector finds 2 faces at **10.0-11.2s** in sample 1.
@@ -110,14 +117,14 @@ Samples 2 and 3 remain off by one appearance in total. Their true counts are unp
 tuning further would be over-fitting - exactly what the brief warns against.
 
 ## Test status
-**32/32 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
+**88/88 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
 The domain layer has no Android imports, so the clustering, segmentation and quality
 logic - the 50%-weighted part - is testable without a device or emulator.
 
 ## Ready to test on a phone
 Everything that can be verified without hardware is done:
 - `./gradlew assembleDebug` succeeds, APK at app/build/outputs/apk/debug/app-debug.apk
-- 32/32 JVM unit tests pass
+- 88/88 JVM unit tests pass
 - Instrumented tests compile - they assert sample 1 gives 5 people / 20 appearances
   on-device, and that the collage renders at 1080x1920
 - Collage layouts verified for 0-12 people: no overlaps, spills or degenerate tiles

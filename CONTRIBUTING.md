@@ -82,6 +82,12 @@ python tools/prototype/pipeline.py 1     # frame sampling + scene cuts
 - Embedding model: MobileFaceNet, verified `[1,112,112,3]` float32 → `[1,192]` float32, Apache 2.0,
   5.2 MB.
 - Scene-cut detector finds ~14–17 cuts per clip at ~1.5s median spacing.
+- **ML Kit names eye landmarks from the subject's side.** `LEFT_EYE` is the eye further *right*
+  in the image. The prototype's MediaPipe points (33/263) were named by image side. Treating the
+  two the same rotated every face 180° before embedding and split one person into three on-device.
+  `FaceAligner` sorts the eyes by x so the naming can't matter; `FaceAlignerTest` pins it.
+- ML Kit reports pupil centres, not outer eye corners; the same face spans ~70% as far. The pupil
+  span constant is 0.31, not the prototype's 0.42, for that reason.
 
 ## What makes this approach distinct
 
