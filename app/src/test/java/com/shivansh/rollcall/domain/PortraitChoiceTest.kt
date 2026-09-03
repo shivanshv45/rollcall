@@ -93,4 +93,54 @@ class PortraitChoiceTest {
         val stubs = listOf(Tracklet(0, listOf(sample(t = 0))), Tracklet(1, listOf(sample(t = 5000))))
         assertFalse(PersonEvidence.isEnough(stubs, minCoreTracks = 3))
     }
+
+    /**
+     * Mirrors PortraitPicker's candidate order: solo frames are a hard
+     * preference, not a scoring penalty, so a sharper two-shot never wins over
+     * a usable solo frame.
+     */
+    private fun candidateOrder(samples: List<FaceSample>): List<FaceSample> {
+        val (solo, shared) = samples.partition { it.coFaces.isEmpty() }
+        return solo.sortedByDescending { FaceQuality.portraitScore(it) } +
+            shared.sortedByDescending { FaceQuality.portraitScore(it) }
+    }
+
+    @Test
+    fun `a solo frame is tried before a sharper shared one`() {
+        val sharpShared = sample(t = 0, sharpness = 1f, coFaces = neighbour)
+        val softSolo = sample(t = 200, sharpness = 0.4f)
+
+        assertEquals(softSolo, candidateOrder(listOf(sharpShared, softSolo)).first())
+    }
+
+    @Test
+    fun `every solo frame is tried before any shared one`() {
+        val samples = listOf(
+            sample(t = 0, sharpness = 1f, coFaces = neighbour),
+            sample(t = 200, sharpness = 0.9f, coFaces = neighbour),
+            sample(t = 400, sharpness = 0.3f),
+            sample(t = 600, sharpness = 0.5f),
+        )
+        val order = candidateOrder(samples)
+        assertTrue(order.take(2).all { it.coFaces.isEmpty() })
+        assertTrue(order.drop(2).none { it.coFaces.isEmpty() })
+    }
+
+    @Test
+    fun `someone only ever seen with others still gets a candidate`() {
+        val samples = listOf(
+            sample(t = 0, sharpness = 0.6f, coFaces = neighbour),
+            sample(t = 200, sharpness = 0.9f, coFaces = neighbour),
+        )
+        val order = candidateOrder(samples)
+        assertEquals(2, order.size)
+        assertEquals(200L, order.first().timestampMs)
+    }
+
+    @Test
+    fun `solo frames are still ranked among themselves`() {
+        val dull = sample(t = 0, sharpness = 0.3f)
+        val best = sample(t = 200, sharpness = 0.95f)
+        assertEquals(best, candidateOrder(listOf(dull, best)).first())
+    }
 }

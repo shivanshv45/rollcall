@@ -32,10 +32,14 @@ class PortraitPicker @Inject constructor(
         maxHeight: Int,
         aspect: Float,
     ): Bitmap? {
-        val candidates = person.tracklets
-            .flatMap { it.samples }
-            .sortedByDescending { FaceQuality.portraitScore(it) }
-            .take(CANDIDATES)
+        // Solo frames first, best of each group first. Anyone ever seen alone
+        // should be shown alone, even if their best shared frame is sharper, so
+        // the split is a hard partition rather than a scoring penalty. Someone
+        // never seen alone falls through to the shared list and gets cropped.
+        val samples = person.tracklets.flatMap { it.samples }
+        val (solo, shared) = samples.partition { it.coFaces.isEmpty() }
+        val candidates = solo.sortedByDescending { FaceQuality.portraitScore(it) }.take(CANDIDATES) +
+            shared.sortedByDescending { FaceQuality.portraitScore(it) }.take(CANDIDATES)
 
         var fallback: Bitmap? = null
         for (sample in candidates) {
@@ -84,7 +88,7 @@ class PortraitPicker @Inject constructor(
         hypot(centerX - other.centerX, centerY - other.centerY)
 
     private companion object {
-        /** Frames tried before settling for one that has company in it. */
+        /** Frames tried from each of the solo and shared lists. */
         const val CANDIDATES = 4
     }
 }
