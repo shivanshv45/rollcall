@@ -46,6 +46,9 @@ You can also copy that .apk to the phone and tap it (allow "install from unknown
 
 ## Put the test videos on the phone
 
+The clips are not in the repo - they are iykyk's assignment assets. Download them
+from the assignment's Drive folder into `vids/` first, then:
+
 ```bash
 ./android-sdk/platform-tools/adb.exe push vids/. /sdcard/Movies/
 ```

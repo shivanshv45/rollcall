@@ -14,7 +14,7 @@ group them by identity, count each person's appearances, and build a shareable c
 | `progress.md` | Checkboxes + decisions log. Update after finishing a step. |
 | `ui_avoidance.md` | Part I = UI rules and the design system. Part II = code style rules. |
 | `tools/prototype/` | Python prototype for tuning. Dev tool, not shipped, nothing depends on it. |
-| `vids/` | The three supplied test clips. |
+| `vids/` | The three supplied test clips (gitignored - drop them here yourself). |
 | `design_insp/` | Reference images incl. the iykyk landing page. |
 | `android-sdk/` | Local SDK (gitignored). `export ANDROID_HOME="$PWD/android-sdk"`. |
 | `app/` | The Android app (once Layer 2 starts). |
