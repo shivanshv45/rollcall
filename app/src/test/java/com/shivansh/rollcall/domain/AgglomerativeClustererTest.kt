@@ -133,4 +133,46 @@ class AgglomerativeClustererTest {
         )
         assertTrue(CosineDistance.between(a, floatArrayOf(-1f, 0f, 0f)) > 1.9)
     }
+
+    /**
+     * A lone tracklet sitting just outside the assign threshold used to survive
+     * as its own cluster, which the UI then showed as a duplicate person with
+     * one appearance.
+     */
+    @Test
+    fun `a lone leftover is absorbed rather than reported as a person`() {
+        val people = distinctGroups(perGroup = 4, groups = 2).toMutableList()
+
+        // A hard angle on the first person: same direction, well off the core.
+        val stray = FloatArray(2) { axis -> if (axis == 0) 1f else 0.85f }.l2Normalized()
+        people += stray
+
+        val labels = clusterer().cluster(CosineDistance.matrix(people), emptySet())
+        assertEquals(2, labels.toSet().size)
+    }
+
+    @Test
+    fun `an absorbed leftover joins the identity it resembles`() {
+        val people = distinctGroups(perGroup = 4, groups = 2).toMutableList()
+        val stray = FloatArray(2) { axis -> if (axis == 0) 1f else 0.85f }.l2Normalized()
+        people += stray
+
+        val labels = clusterer().cluster(CosineDistance.matrix(people), emptySet())
+        assertEquals("stray belongs with the first group", labels[0], labels.last())
+    }
+
+    /** Absorbing leftovers must not override the same-frame constraint. */
+    @Test
+    fun `a leftover is never absorbed into someone it shared a frame with`() {
+        val people = distinctGroups(perGroup = 4, groups = 2).toMutableList()
+        val stray = FloatArray(2) { axis -> if (axis == 0) 1f else 0.85f }.l2Normalized()
+        people += stray
+        val strayIndex = people.lastIndex
+
+        // Block the stray from the group it would otherwise join.
+        val blocked = (0 until 4).map { it to strayIndex }.toSet()
+        val labels = clusterer().cluster(CosineDistance.matrix(people), blocked)
+
+        assertNotEquals(labels[0], labels[strayIndex])
+    }
 }
