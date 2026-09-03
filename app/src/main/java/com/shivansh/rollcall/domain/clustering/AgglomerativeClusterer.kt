@@ -38,6 +38,7 @@ class AgglomerativeClusterer(
         }
 
         absorbFragments(members, distances, blocked)
+        mergeLeftovers(members, distances, blocked)
 
         val labels = IntArray(n)
         members.values.sortedBy { it.min() }.forEachIndexed { label, group ->
@@ -73,14 +74,7 @@ class AgglomerativeClusterer(
             }.sortedBy { it.first }
 
             val best = ranked.firstOrNull() ?: continue
-
-            // A fragment past the threshold used to be left alone, which reported
-            // it as a whole extra person. A one-tracklet leftover is far more
-            // likely to be a hard angle on someone already found than a person
-            // who only ever appears once, so single tracklets get a wider gate.
-            val gate = if (group.size == 1) assignThreshold * LONE_FRAGMENT_SLACK
-            else assignThreshold
-            if (best.first >= gate) continue
+            if (best.first >= assignThreshold) continue
 
             // On a near-tie the embedding can't separate them, so prefer the
             // smaller identity. Picking on a 0.01 margin leaves one person
@@ -99,13 +93,36 @@ class AgglomerativeClusterer(
         }
     }
 
+    /**
+     * Third pass: what is left merges with itself.
+     *
+     * Someone who only ever appears in fragments has no strong cluster to be
+     * folded into, so after the second pass their fragments are still apart
+     * and each one is reported as a person with a single appearance. Merging
+     * the leftovers among themselves at the relaxed threshold turns them back
+     * into one person. Same-frame pairs stay blocked throughout.
+     */
+    private fun mergeLeftovers(
+        members: MutableMap<Int, MutableList<Int>>,
+        distances: Array<DoubleArray>,
+        blocked: Array<BooleanArray>,
+    ) {
+        while (true) {
+            val weak = members.filterValues { it.size < minCoreSize }.keys.toList()
+            if (weak.size < 2) return
+            val pair = closestPair(members, distances, blocked, assignThreshold, weak) ?: return
+            members[pair.first]!!.addAll(members.remove(pair.second)!!)
+        }
+    }
+
     private fun closestPair(
         members: Map<Int, List<Int>>,
         distances: Array<DoubleArray>,
         blocked: Array<BooleanArray>,
         limit: Double,
+        among: List<Int> = members.keys.toList(),
     ): Pair<Int, Int>? {
-        val keys = members.keys.toList()
+        val keys = among
         var best = limit
         var found: Pair<Int, Int>? = null
         for (x in keys.indices) {
@@ -135,13 +152,5 @@ class AgglomerativeClusterer(
     private companion object {
         /** Gap below which two candidates count as tied. Same result from 0.04 to 0.20. */
         const val TIE_MARGIN = 0.08
-
-        /**
-         * How much further a single leftover tracklet may reach for a home.
-         *
-         * Reporting a duplicate of someone already on the list is a worse error
-         * than attaching a stray tracklet to the wrong one of two candidates.
-         */
-        const val LONE_FRAGMENT_SLACK = 1.25
     }
 }

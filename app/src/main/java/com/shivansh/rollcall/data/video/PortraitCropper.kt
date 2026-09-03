@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
-import com.shivansh.rollcall.domain.model.FaceSample
 import kotlin.math.roundToInt
 
 /**
@@ -46,7 +45,36 @@ object PortraitCropper {
         cropScale: Float,
         aspect: Float,
         neighbours: List<NeighbourBox> = emptyList(),
-    ): Bitmap {
+    ): Bitmap = crop(
+        frame,
+        rectFor(
+            frame.width, frame.height, boxCenterX, boxCenterY, boxWidth, boxHeight,
+            faceScale, cropScale, aspect, neighbours,
+        ),
+    )
+
+    /** Cuts [rect] out of [frame] into a fresh bitmap. */
+    fun crop(frame: Bitmap, rect: Rect): Bitmap {
+        // Composited, not sliced: createBitmap hands back the source when the
+        // crop covers it, and callers recycle the frame.
+        val out = Bitmap.createBitmap(rect.width(), rect.height(), Bitmap.Config.ARGB_8888)
+        Canvas(out).drawBitmap(frame, rect, Rect(0, 0, rect.width(), rect.height()), paint)
+        return out
+    }
+
+    /** The crop rectangle alone, so a caller can check what falls inside it. */
+    fun rectFor(
+        frameWidth: Int,
+        frameHeight: Int,
+        boxCenterX: Float,
+        boxCenterY: Float,
+        boxWidth: Float,
+        boxHeight: Float,
+        faceScale: Float,
+        cropScale: Float,
+        aspect: Float,
+        neighbours: List<NeighbourBox> = emptyList(),
+    ): Rect {
         val faceW = boxWidth * faceScale
         val faceH = boxHeight * faceScale
         val centerX = boxCenterX * faceScale
@@ -54,28 +82,18 @@ object PortraitCropper {
 
         // Never ask for more than the frame holds, or the clamp below slides
         // the crop off centre.
-        var cropW = (faceW * cropScale).coerceAtMost(frame.width.toFloat())
+        var cropW = (faceW * cropScale).coerceAtMost(frameWidth.toFloat())
         cropW = limitToNeighbours(cropW, faceW, centerX, faceScale, neighbours)
-        val cropH = (cropW * aspect).coerceAtMost(frame.height.toFloat())
+        val cropH = (cropW * aspect).coerceAtMost(frameHeight.toFloat())
 
-        val x = (centerX - cropW / 2).coerceIn(0f, (frame.width - cropW).coerceAtLeast(0f))
-        val y = (centerY - cropH / 2).coerceIn(0f, (frame.height - cropH).coerceAtLeast(0f))
+        val x = (centerX - cropW / 2).coerceIn(0f, (frameWidth - cropW).coerceAtLeast(0f))
+        val y = (centerY - cropH / 2).coerceIn(0f, (frameHeight - cropH).coerceAtLeast(0f))
 
-        val left = x.roundToInt().coerceIn(0, frame.width - 1)
-        val top = y.roundToInt().coerceIn(0, frame.height - 1)
-        val right = (left + cropW.roundToInt()).coerceIn(left + 1, frame.width)
-        val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frame.height)
-
-        // Composited, not sliced: createBitmap hands back the source when the
-        // crop covers it, and callers recycle the frame.
-        val out = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
-        Canvas(out).drawBitmap(
-            frame,
-            Rect(left, top, right, bottom),
-            Rect(0, 0, right - left, bottom - top),
-            paint,
-        )
-        return out
+        val left = x.roundToInt().coerceIn(0, frameWidth - 1)
+        val top = y.roundToInt().coerceIn(0, frameHeight - 1)
+        val right = (left + cropW.roundToInt()).coerceIn(left + 1, frameWidth)
+        val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frameHeight)
+        return Rect(left, top, right, bottom)
     }
 
     /**
@@ -113,6 +131,3 @@ object PortraitCropper {
 /** Another face in the same frame, in working-frame coordinates. */
 data class NeighbourBox(val centerX: Float, val halfWidth: Float)
 
-/** The other faces in this sample's frame, as crop limits. */
-fun FaceSample.neighbourBoxes(): List<NeighbourBox> =
-    coFaces.map { NeighbourBox(it.centerX, it.width / 2f) }

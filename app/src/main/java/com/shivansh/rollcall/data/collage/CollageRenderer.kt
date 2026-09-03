@@ -9,11 +9,8 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.net.Uri
-import com.shivansh.rollcall.data.video.FrameExtractor
-import com.shivansh.rollcall.data.video.PortraitCropper
-import com.shivansh.rollcall.data.video.neighbourBoxes
+import com.shivansh.rollcall.data.video.PortraitPicker
 import com.shivansh.rollcall.domain.model.Person
-import com.shivansh.rollcall.domain.model.PipelineConfig
 import com.shivansh.rollcall.domain.model.VideoAnalysis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,8 +23,7 @@ import javax.inject.Inject
  * downscaled working frame, and cropped wide rather than to the detected box.
  */
 class CollageRenderer @Inject constructor(
-    private val frames: FrameExtractor,
-    private val config: PipelineConfig,
+    private val picker: PortraitPicker,
 ) {
 
     /**
@@ -130,28 +126,9 @@ class CollageRenderer @Inject constructor(
         }
     }
 
-    /** The person's best frame, re-decoded for print size and cropped wide. */
-    private fun portrait(uri: Uri, person: Person): Bitmap? {
-        val sample = person.representative
-        // Plenty of detail once drawn at tile size, and caps a 4K decode.
-        val frame = frames.frameAt(uri, sample.timestampMs, WIDTH, HEIGHT) ?: return null
-
-        val box = sample.box
-        val out = PortraitCropper.crop(
-            frame = frame,
-            boxCenterX = box.centerX,
-            boxCenterY = box.centerY,
-            boxWidth = box.width.toFloat(),
-            boxHeight = box.height.toFloat(),
-            // The box was measured on the working frame, so rescale it to this one.
-            faceScale = frame.width.toFloat() / config.workWidth,
-            cropScale = config.portraitCropScale,
-            aspect = TILE_ASPECT,
-            neighbours = sample.neighbourBoxes(),
-        )
-        frame.recycle()
-        return out
-    }
+    /** The person's portrait, chosen and checked so nobody else is in it. */
+    private suspend fun portrait(uri: Uri, person: Person): Bitmap? =
+        picker.pick(uri, person, WIDTH, HEIGHT, TILE_ASPECT)
 
     private fun drawTile(
         canvas: Canvas,

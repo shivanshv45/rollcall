@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.shivansh.rollcall.CrashReporter
 import com.shivansh.rollcall.ui.components.PrimaryButton
 import com.shivansh.rollcall.ui.components.SecondaryButton
 import com.shivansh.rollcall.ui.theme.Ink
@@ -34,10 +33,18 @@ import com.shivansh.rollcall.ui.theme.Space
 import com.shivansh.rollcall.ui.theme.TextSecondary
 
 /**
- * Shows the previous run's crash report so it can be sent on without a cable.
+ * A block of text with a share button. Crash reports and run reports both use
+ * it, so either can be sent on without a cable.
  */
 @Composable
-fun DiagnosticsScreen(report: String, onDismiss: () -> Unit) {
+fun DiagnosticsScreen(
+    report: String,
+    onDismiss: () -> Unit,
+    title: String = "The last run crashed",
+    subtitle: String = "Send this report on, then carry on using the app.",
+    subject: String = "Roll Call crash report",
+    dismissLabel: String = "Dismiss",
+) {
     val context = LocalContext.current
 
     Column(
@@ -49,14 +56,14 @@ fun DiagnosticsScreen(report: String, onDismiss: () -> Unit) {
     ) {
         Spacer(Modifier.height(Space.lg))
         Text(
-            "The last run crashed",
+            title,
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
         )
         Spacer(Modifier.height(Space.xxs))
         Text(
-            "Send this report on, then carry on using the app.",
+            subtitle,
             fontSize = 15.sp,
             color = TextSecondary,
         )
@@ -88,13 +95,7 @@ fun DiagnosticsScreen(report: String, onDismiss: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(Space.sm),
         ) {
             Box(Modifier.weight(1f)) {
-                SecondaryButton(
-                    text = "Dismiss",
-                    onClick = {
-                        CrashReporter.clear(context)
-                        onDismiss()
-                    },
-                )
+                SecondaryButton(text = dismissLabel, onClick = onDismiss)
             }
             Box(Modifier.weight(1f)) {
                 PrimaryButton(
@@ -104,7 +105,7 @@ fun DiagnosticsScreen(report: String, onDismiss: () -> Unit) {
                             Intent.createChooser(
                                 Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Roll Call crash report")
+                                    putExtra(Intent.EXTRA_SUBJECT, subject)
                                     putExtra(Intent.EXTRA_TEXT, report)
                                 },
                                 null,

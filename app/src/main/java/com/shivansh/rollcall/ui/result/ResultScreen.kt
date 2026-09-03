@@ -44,6 +44,7 @@ fun ResultScreen(
     portraits: Map<Int, Bitmap>,
     onCreateCollage: () -> Unit,
     onStartOver: () -> Unit,
+    onShowDetails: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize().background(Ink)) {
         LazyColumn(
@@ -76,8 +77,9 @@ fun ResultScreen(
             verticalArrangement = Arrangement.spacedBy(Space.xs),
         ) {
             PrimaryButton("Create collage", onCreateCollage)
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 TextAction("Choose another video", onStartOver)
+                TextAction("Run details", onShowDetails)
             }
         }
     }

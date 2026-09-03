@@ -40,7 +40,7 @@ import com.shivansh.rollcall.ui.theme.Ink
 private sealed interface Screen {
     data object Home : Screen
     data class Processing(val state: ProcessingState.Working) : Screen
-    data class Result(val analysis: VideoAnalysis) : Screen
+    data class Result(val analysis: VideoAnalysis, val report: String) : Screen
     data object Collage : Screen
     data class Error(val failure: Failure) : Screen
 }
@@ -67,8 +67,25 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
     var savedMessage by remember { mutableStateOf<String?>(null) }
     var crashReport by remember { mutableStateOf(CrashReporter.lastReport(context)) }
 
+    var details by remember { mutableStateOf<String?>(null) }
+
     crashReport?.let { report ->
-        DiagnosticsScreen(report) { crashReport = null }
+        DiagnosticsScreen(report, onDismiss = {
+            CrashReporter.clear(context)
+            crashReport = null
+        })
+        return
+    }
+
+    details?.let { report ->
+        DiagnosticsScreen(
+            report,
+            onDismiss = { details = null },
+            title = "Run details",
+            subtitle = "What the pipeline saw. Share this if the result looks wrong.",
+            subject = "Roll Call run report",
+            dismissLabel = "Back",
+        )
         return
     }
 
@@ -76,7 +93,7 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
     val screen: Screen = when {
         showCollage -> Screen.Collage
         current is ProcessingState.Working -> Screen.Processing(current)
-        current is ProcessingState.Done -> Screen.Result(current.result)
+        current is ProcessingState.Done -> Screen.Result(current.result, current.report)
         current is ProcessingState.Failed -> Screen.Error(current.reason)
         else -> Screen.Home
     }
@@ -102,6 +119,7 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
                 is Screen.Result -> ResultScreen(
                     analysis = target.analysis,
                     portraits = portraits,
+                    onShowDetails = { details = target.report },
                     onCreateCollage = {
                         viewModel.buildCollage()
                         showCollage = true

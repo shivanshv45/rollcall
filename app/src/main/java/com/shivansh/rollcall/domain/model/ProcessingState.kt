@@ -19,7 +19,7 @@ sealed interface ProcessingState {
         val previews: List<Bitmap> = emptyList(),
     ) : ProcessingState
 
-    data class Done(val result: VideoAnalysis) : ProcessingState
+    data class Done(val result: VideoAnalysis, val report: String = "") : ProcessingState
 
     data class Failed(val reason: Failure) : ProcessingState
 

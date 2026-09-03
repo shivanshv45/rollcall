@@ -184,4 +184,16 @@ class PortraitCropperTest {
         )
         assertTrue("crop was ${out.width}px, expected wider than the face", out.width > 100)
     }
+
+    /** What the picker relies on: a neighbour's centre never lands inside the rect. */
+    @Test
+    fun `rect excludes the centre of a neighbouring face`() {
+        val rect = PortraitCropper.rectFor(
+            frameWidth = 1000, frameHeight = 1000,
+            boxCenterX = 300f, boxCenterY = 500f, boxWidth = 120f, boxHeight = 120f,
+            faceScale = 1f, cropScale = 3.2f, aspect = 1f,
+            neighbours = listOf(NeighbourBox(centerX = 520f, halfWidth = 60f)),
+        )
+        assertFalse(rect.contains(520, 500))
+    }
 }
