@@ -1,5 +1,6 @@
 package com.shivansh.rollcall.ui.result
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.VideoAnalysis
-import com.shivansh.rollcall.ui.components.IdentityChip
+import com.shivansh.rollcall.ui.components.IdentityPortrait
 import com.shivansh.rollcall.ui.components.PrimaryButton
 import com.shivansh.rollcall.ui.components.ScrubberStrip
 import com.shivansh.rollcall.ui.components.TextAction
@@ -40,6 +41,7 @@ import com.shivansh.rollcall.ui.theme.TextSecondary
 @Composable
 fun ResultScreen(
     analysis: VideoAnalysis,
+    portraits: Map<Int, Bitmap>,
     onCreateCollage: () -> Unit,
     onStartOver: () -> Unit,
 ) {
@@ -60,7 +62,7 @@ fun ResultScreen(
                 Spacer(Modifier.height(Space.md))
             }
             items(analysis.people, key = { it.id }) { person ->
-                PersonRow(person, analysis.durationMs)
+                PersonRow(person, analysis.durationMs, portraits[person.id])
             }
         }
 
@@ -101,7 +103,7 @@ private fun Header(analysis: VideoAnalysis) {
 }
 
 @Composable
-private fun PersonRow(person: Person, durationMs: Long) {
+private fun PersonRow(person: Person, durationMs: Long, portrait: Bitmap?) {
     val color = IdentityColors[person.id % IdentityColors.size]
     Column(
         Modifier
@@ -115,7 +117,7 @@ private fun PersonRow(person: Person, durationMs: Long) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.sm),
         ) {
-            IdentityChip(person.label, color)
+            IdentityPortrait(person.label, color, portrait)
             Column(Modifier.weight(1f)) {
                 Text(
                     "${person.appearanceCount} " +

@@ -5,26 +5,25 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.net.Uri
 import com.shivansh.rollcall.data.video.FrameExtractor
+import com.shivansh.rollcall.data.video.PortraitCropper
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import com.shivansh.rollcall.domain.model.VideoAnalysis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.math.roundToInt
 
 /**
  * Draws the finished collage at Instagram-story size.
  *
- * Tiles come from the full-resolution frame, cropped generously around the face
- * rather than to the detected box - a tight crop on a 540px working frame gives
- * a soft, low-resolution tile, which the brief calls out specifically.
+ * Tiles are re-decoded from the video at output size rather than reused from
+ * the downscaled working frame, and cropped generously around the face rather
+ * than to the detected box, which the brief calls out specifically.
  */
 class CollageRenderer @Inject constructor(
     private val frames: FrameExtractor,
@@ -39,8 +38,8 @@ class CollageRenderer @Inject constructor(
         val people = analysis.people
         val tiles = layoutFor(people.size)
 
-        // One portrait live at a time - decoding them all first holds a
-        // 1080x1920 frame per person simultaneously.
+        // One portrait live at a time - decoding them all up front would hold a
+        // full frame per person at once.
         people.forEachIndexed { index, person ->
             val rect = tiles.getOrNull(index) ?: return@forEachIndexed
             val portrait = portrait(uri, person)
@@ -124,43 +123,24 @@ class CollageRenderer @Inject constructor(
         }
     }
 
-    /**
-     * The person's best frame, re-decoded at full resolution and cropped wide.
-     *
-     * portraitCropScale reaches well outside the face box so the tile shows head
-     * and shoulders; the crop is nudged upward because centring a face exactly
-     * looks like a mugshot.
-     */
+    /** The person's best frame, re-decoded for print size and cropped wide. */
     private fun portrait(uri: Uri, person: Person): Bitmap? {
         val sample = person.representative
-        val frame = frames.frameAt(uri, sample.timestampMs) ?: return null
+        // Two tile-widths of detail is plenty once it is drawn at tile size, and
+        // caps the decode on a 4K clip.
+        val frame = frames.frameAt(uri, sample.timestampMs, WIDTH, HEIGHT) ?: return null
 
-        // The box came from the half-size working frame, so scale it to this one.
-        val scale = frame.width.toFloat() / config.workWidth
         val box = sample.box
-        val faceW = box.width * scale
-        val faceH = box.height * scale
-        val centerX = box.centerX * scale
-        val centerY = box.centerY * scale - faceH * HEADROOM
-
-        val cropW = faceW * config.portraitCropScale
-        val cropH = cropW * TILE_ASPECT
-        val x = (centerX - cropW / 2).coerceIn(0f, (frame.width - cropW).coerceAtLeast(0f))
-        val y = (centerY - cropH / 2).coerceIn(0f, (frame.height - cropH).coerceAtLeast(0f))
-
-        val left = x.roundToInt().coerceIn(0, frame.width - 1)
-        val top = y.roundToInt().coerceIn(0, frame.height - 1)
-        val right = (left + cropW.roundToInt()).coerceIn(left + 1, frame.width)
-        val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frame.height)
-
-        // New bitmap rather than an in-place crop: createBitmap returns the
-        // source when the crop covers it, and the source is recycled below.
-        val out = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
-        Canvas(out).drawBitmap(
-            frame,
-            Rect(left, top, right, bottom),
-            Rect(0, 0, right - left, bottom - top),
-            imagePaint,
+        val out = PortraitCropper.crop(
+            frame = frame,
+            boxCenterX = box.centerX,
+            boxCenterY = box.centerY,
+            boxWidth = box.width.toFloat(),
+            boxHeight = box.height.toFloat(),
+            // The box was measured on the working frame, so rescale it to this one.
+            faceScale = frame.width.toFloat() / config.workWidth,
+            cropScale = config.portraitCropScale,
+            aspect = TILE_ASPECT,
         )
         frame.recycle()
         return out
@@ -288,8 +268,5 @@ class CollageRenderer @Inject constructor(
         const val TILE_PADDING = 28f
         const val TILE_ASPECT = 1.25f
         const val SCRIM_FRACTION = 0.38f
-
-        /** Shifts the crop up so there is headroom above the face. */
-        const val HEADROOM = 0.12f
     }
 }

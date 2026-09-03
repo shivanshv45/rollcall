@@ -2,16 +2,19 @@ package com.shivansh.rollcall.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -103,6 +108,57 @@ fun IdentityChip(label: String, color: Color, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * A person's representative shot, with the identity letter kept as a badge.
+ *
+ * The roster is where the grouping gets judged, so it shows the face rather
+ * than only a letter. The badge stays because the letter ties this row to the
+ * same person in the collage, and it is what remains if the decode failed.
+ */
+@Composable
+fun IdentityPortrait(
+    label: String,
+    color: Color,
+    portrait: Bitmap?,
+    modifier: Modifier = Modifier,
+) {
+    if (portrait == null || portrait.isRecycled) {
+        IdentityChip(label, color, modifier)
+        return
+    }
+
+    Box(
+        modifier
+            .size(PORTRAIT_SIZE)
+            .clip(Radius.chip)
+            .background(color.copy(alpha = 0.16f))
+            .border(1.dp, color.copy(alpha = 0.5f), Radius.chip),
+    ) {
+        Image(
+            bitmap = portrait.asImageBitmap(),
+            contentDescription = "Person $label",
+            modifier = Modifier.fillMaxSize().clip(Radius.chip),
+            contentScale = ContentScale.Crop,
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(3.dp)
+                .size(BADGE_SIZE)
+                .clip(Radius.pill)
+                .background(Color.Black.copy(alpha = 0.62f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                color = color,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
 @Composable
 fun StatBlock(value: String, caption: String, modifier: Modifier = Modifier) {
     Column(modifier) {
@@ -175,4 +231,6 @@ fun ProgressBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
 
 private val STRIP_HEIGHT = 6.dp
 private val CHIP_SIZE = 34.dp
+private val PORTRAIT_SIZE = 56.dp
+private val BADGE_SIZE = 18.dp
 private val BAR_HEIGHT = 6.dp

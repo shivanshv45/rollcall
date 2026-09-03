@@ -56,9 +56,27 @@ class FrameExtractor @Inject constructor(
         }
     }
 
-    /** Full-resolution frame for the shot that ends up in the collage. */
-    fun frameAt(uri: Uri, timestampMs: Long): Bitmap? = retriever(uri).use {
-        it.getFrameAtTime(timestampMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
+    /**
+     * A single frame, decoded no larger than [maxWidth] x [maxHeight].
+     *
+     * getFrameAtTime decodes at the video's own resolution, so a 4K clip lands a
+     * ~33MB bitmap in the heap for what ends up as a tile a few hundred pixels
+     * wide. Asking the decoder to scale keeps the peak proportional to what is
+     * actually drawn, which matters because these are decoded one per person in
+     * a row.
+     */
+    fun frameAt(
+        uri: Uri,
+        timestampMs: Long,
+        maxWidth: Int = config.workWidth * 2,
+        maxHeight: Int = config.workHeight * 2,
+    ): Bitmap? = retriever(uri).use {
+        it.getScaledFrameAtTime(
+            timestampMs * 1000,
+            MediaMetadataRetriever.OPTION_CLOSEST,
+            maxWidth,
+            maxHeight,
+        )
     }
 
     private fun retriever(uri: Uri) = MediaMetadataRetriever().apply {

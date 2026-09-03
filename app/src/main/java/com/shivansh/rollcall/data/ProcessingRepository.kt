@@ -140,8 +140,10 @@ class ProcessingRepository @Inject constructor(
                 )
             }
             .sortedBy { it.appearances.firstOrNull()?.startMs ?: Long.MAX_VALUE }
-            .mapIndexed { index, person -> person.copy(id = index) }
+            // Drop before numbering: the id is both the label and an index into
+            // the list, so numbering first leaves gaps once anyone is dropped.
             .filter { it.appearances.isNotEmpty() }
+            .mapIndexed { index, person -> person.copy(id = index) }
 
         if (people.isEmpty()) {
             emit(ProcessingState.Failed(Failure.NoFacesFound))
