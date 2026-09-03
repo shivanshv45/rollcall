@@ -39,9 +39,8 @@ class CollageRenderer @Inject constructor(
         val people = analysis.people
         val tiles = layoutFor(people.size)
 
-        // One portrait in memory at a time. Decoding them all first put a
-        // 1080x1920 frame per person on the heap at once, which is where a large
-        // cast would actually run out.
+        // One portrait live at a time - decoding them all first holds a
+        // 1080x1920 frame per person simultaneously.
         people.forEachIndexed { index, person ->
             val rect = tiles.getOrNull(index) ?: return@forEachIndexed
             val portrait = portrait(uri, person)
@@ -154,9 +153,8 @@ class CollageRenderer @Inject constructor(
         val right = (left + cropW.roundToInt()).coerceIn(left + 1, frame.width)
         val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frame.height)
 
-        // Drawn into a new bitmap rather than cropped in place: createBitmap can
-        // hand back the source when the crop covers it, and the source is
-        // recycled on the next line.
+        // New bitmap rather than an in-place crop: createBitmap returns the
+        // source when the crop covers it, and the source is recycled below.
         val out = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
         Canvas(out).drawBitmap(
             frame,

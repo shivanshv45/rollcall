@@ -42,7 +42,7 @@ class FaceEmbedder @Inject constructor(
         .order(ByteOrder.nativeOrder())
     private val output = Array(1) { FloatArray(DIMENSIONS) }
 
-    // Reused across every face; a fresh one per call was 50KB of GC churn each time.
+    // Reused across faces; a per-call array is 50KB of churn each time.
     private val pixels = IntArray(SIZE * SIZE)
 
     fun embed(frame: Bitmap, face: DetectedFace): FloatArray? {
@@ -88,9 +88,8 @@ class FaceEmbedder @Inject constructor(
             }
             canvas.drawBitmap(frame, matrix, paint)
         } else {
-            // Drawn straight from the source rect - taking an intermediate crop
-            // with createBitmap risks getting the frame itself back and then
-            // recycling the caller's bitmap.
+            // Straight from the source rect: an intermediate createBitmap crop
+            // can alias the frame, which the caller still owns.
             val box = face.sample.box
             val margin = (box.width * FALLBACK_MARGIN).toInt()
             val srcLeft = (box.left - margin).coerceIn(0, frame.width - 1)

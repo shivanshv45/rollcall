@@ -1,7 +1,7 @@
 # Implementation Plan — Roll Call
 
 **Read [`prd.md`](prd.md) first.** This file is the build order. It is written to be executed
-step-by-step, including by another model, so each step states its **goal**, **exact work**, and a
+step-by-step, so each step states its **goal**, **exact work**, and a
 **verification gate** that must pass before moving on.
 
 > ## Rules for whoever is implementing this
@@ -111,7 +111,7 @@ BOM, Hilt, ML Kit face detection, LiteRT, coroutines, Coil. Package `com.shivans
 **Gate:** `./gradlew assembleDebug` succeeds; APK installs and launches to a blank screen.
 
 ### Step 2.2 — Theme + design system
-`ui/theme/`: Color, Type, Shape, Spacing from `ui_avoidance.md` §7. Dark-first.
+`ui/theme/`: Color, Type, Shape, Spacing from `design_notes.md` §7. Dark-first.
 **Every value is a named token** — no raw hex or raw dp in screen code, ever.
 
 **Gate:** a scratch screen renders each token; verify at 1.0× and 1.3× font scale.
@@ -178,7 +178,7 @@ Re-run the Step 1.5 sweep using **real ML Kit + on-device embeddings**. Confirm 
 
 ## Layer 4 — UI
 
-Build against `ui_avoidance.md`. Every screen needs **empty, loading, error, and cancelled** states.
+Build against `design_notes.md`. Every screen needs **empty, loading, error, and cancelled** states.
 
 ### Step 4.1 — Navigation + Home
 Nav graph, video picker via `ActivityResultContracts.OpenDocument` (SAF — no storage permission).

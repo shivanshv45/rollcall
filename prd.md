@@ -379,13 +379,13 @@ com.shivansh.rollcall
 ## 7. UX (part of the 20%)
 
 Four screens. Design system, anti-patterns, and the full rationale live in
-[`ui_avoidance.md`](ui_avoidance.md) — this section covers structure and behaviour.
+[`design_notes.md`](design_notes.md) — this section covers structure and behaviour.
 
 **Visual direction** — drawn from `design_insp/`: iykyk's own magenta `#FF2E88` on near-black,
 heavy display type with real weight contrast, generous rounding, full-bleed portrait imagery. The
 inspiration images are consistently dark-surface, image-forward, and confident with type; that's
 the register. **Explicitly avoided:** blue→purple gradients, emoji-as-UI, uniform 16dp rounding,
-stock component sizing — the documented vibecoded tells.
+stock component sizing.
 
 ### Screen 1 — Home
 Big display title, one-line explanation, a prominent **Choose video** button, and a list of previous
@@ -419,7 +419,7 @@ standard share sheet, as required.
 
 **Motion:** spring-based, ~200–300 ms, applied to state changes only. Haptic tick on completion and
 primary actions. **States:** every screen has designed empty, loading, error, and cancelled states —
-their absence is the clearest vibecoded tell there is.
+their absence is what makes an app feel unfinished.
 
 ---
 
@@ -527,7 +527,7 @@ calls and has no backend.)*
 - [ ] Working **debug APK**
 - [ ] **≤60 s screen recording**: processing, appearance counts, and the finished collage for
       **all three** sample videos, each held long enough to read
-- [ ] `prd.md`, `plan.md`, `progress.md`, `ui_avoidance.md`
+- [ ] `prd.md`, `plan.md`, `progress.md`, `design_notes.md`
 
 ---
 
@@ -538,6 +538,6 @@ calls and has no backend.)*
 3. Samples 2 and 3 yield 5 people with plausible, defensible counts.
 4. Every representative shot is frontal, sharp, eyes-open, and **generously cropped**.
 5. Collage saves to the gallery and shares through the system sheet.
-6. UI passes the §6 checklist in `ui_avoidance.md`, including at 1.3× font scale.
+6. UI passes the §6 checklist in `design_notes.md`, including at 1.3× font scale.
 7. Processing never blocks the main thread; cancel works.
 8. JVM unit tests pass for clustering, segmentation, and quality scoring.

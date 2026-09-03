@@ -1,4 +1,4 @@
-# Roll Call — project guide
+# Contributing to Roll Call
 
 Android app for the iykyk internship assignment: process a portrait video on-device, detect faces,
 group them by identity, count each person's appearances, and build a shareable collage.
@@ -12,7 +12,7 @@ group them by identity, count each person's appearances, and build a shareable c
 | `prd.md` | Product spec. The algorithm design lives in §5 — read it before touching the pipeline. |
 | `plan.md` | Build order, 6 layers, a verification gate on every step. Work through it in order. |
 | `progress.md` | Checkboxes + decisions log. Update after finishing a step. |
-| `ui_avoidance.md` | Part I = UI rules and the design system. Part II = code style rules. |
+| `design_notes.md` | Design system and UI rules (Part I), code style (Part II). |
 | `tools/prototype/` | Python prototype for tuning. Dev tool, not shipped, nothing depends on it. |
 | `vids/` | The three supplied test clips (gitignored - drop them here yourself). |
 | `design_insp/` | Reference images incl. the iykyk landing page. |
@@ -43,7 +43,7 @@ When time is short, accuracy wins. A pretty app that miscounts fails half the as
 
 ## Code style
 
-Full rules in `ui_avoidance.md` Part II. The short version:
+Full rules in `design_notes.md` Part II. The short version:
 
 - **Comments explain *why*, code explains *what*.** If a comment restates the line under it, delete it.
 - No docstrings on trivial functions. No `// ─── Section ───` banners.
@@ -83,7 +83,7 @@ python tools/prototype/pipeline.py 1     # frame sampling + scene cuts
   5.2 MB.
 - Scene-cut detector finds ~14–17 cuts per clip at ~1.5s median spacing.
 
-## The three differentiators
+## What makes this approach distinct
 
 1. **Temporal cannot-link constraint** — two faces in the same frame are provably different people,
    so clustering is forbidden from merging them.

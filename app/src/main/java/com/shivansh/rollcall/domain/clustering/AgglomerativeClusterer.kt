@@ -80,10 +80,10 @@ class AgglomerativeClusterer(
             val best = ranked.firstOrNull() ?: continue
             if (best.first >= assignThreshold) continue
 
-            // When the top two are effectively tied the embedding cannot tell them
-            // apart, so fall back to the smaller identity. These fragments come from
-            // two-person shots where both people are mid-appearance, and guessing by
-            // a 0.01 margin tends to leave one person over-counted and another short.
+            // A near-tie means the embedding cannot separate the two, so prefer
+            // the smaller identity. These fragments come from two-person shots
+            // where both people are mid-appearance; picking on a 0.01 margin
+            // leaves one over-counted and the other short.
             val runnerUp = ranked.getOrNull(1)
             val target = if (runnerUp != null && runnerUp.first - best.first < TIE_MARGIN) {
                 listOf(best, runnerUp).minWith(

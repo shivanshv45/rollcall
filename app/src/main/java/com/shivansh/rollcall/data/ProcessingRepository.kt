@@ -53,8 +53,8 @@ class ProcessingRepository @Inject constructor(
 
         val expectedFrames = (duration / config.frameIntervalMs).toInt().coerceAtLeast(1)
 
-        // Only the embedding vectors are kept. Holding a crop per face was what
-        // put ~67MB of bitmaps on the heap and killed the app mid-run.
+        // Embeddings only. A crop per detected face reaches ~67MB over a 30s clip
+        // and never gets read again after the previews are filled.
         val detected = mutableListOf<DetectedFace>()
         val cuts = mutableListOf<Long>()
         val previews = mutableListOf<Bitmap>()
@@ -163,10 +163,10 @@ class ProcessingRepository @Inject constructor(
     /**
      * Small square crop for the progress strip.
      *
-     * Drawn into a fresh bitmap rather than taken with Bitmap.createBitmap(src,
-     * ...), which hands back the source itself when the crop covers the whole
-     * frame - and the caller recycles that frame immediately afterwards, so the
-     * UI would end up drawing a recycled bitmap.
+     * Composited into a new bitmap rather than sliced with
+     * Bitmap.createBitmap(src, ...), which returns the source when the crop
+     * covers it. The caller recycles the frame on the next line, so a slice
+     * would leave the UI holding a recycled bitmap.
      */
     private fun previewOf(frame: Bitmap, face: DetectedFace): Bitmap {
         val box = face.sample.box

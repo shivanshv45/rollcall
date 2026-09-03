@@ -8,7 +8,7 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] Videos profiled — 1080×1920, 25 fps, 750 frames, 30.000 s, no rotation metadata
 - [x] Contact sheets reviewed for all 3 clips → same 5-person cast, re-cut per clip
 - [x] `prd.md` written, self-reviewed, 3 real problems found and fixed
-- [x] `ui_avoidance.md` written (design system + anti-patterns)
+- [x] `design_notes.md` written (design system + anti-patterns)
 - [x] `plan.md` written (6 layers, verification gate on every step)
 - [x] MobileFaceNet downloaded + **verified** `[1,112,112,3]` → `[1,192]` float32, Apache 2.0
 - [x] LiteRT working on desktop for prototyping
