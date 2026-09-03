@@ -78,6 +78,35 @@ class AgglomerativeClustererTest {
     }
 
     @Test
+    fun `a tied fragment goes to the smaller identity`() {
+        // Four tracklets for one person, three for another, and a fragment sitting
+        // almost exactly between them. Distance alone is a coin flip, so it should
+        // land on the shorter list rather than making an already-long one longer.
+        val big = (0 until 4).map { floatArrayOf(1f, 0f, 0.01f * it).l2Normalized() }
+        val small = (0 until 3).map { floatArrayOf(0f, 1f, 0.01f * it).l2Normalized() }
+        val fragment = listOf(floatArrayOf(0.707f, 0.707f, 0f).l2Normalized())
+
+        val labels = clusterer(assign = 0.9)
+            .cluster(CosineDistance.matrix(big + small + fragment), emptySet())
+
+        val fragmentLabel = labels.last()
+        assertEquals("fragment should join the 3-member group", labels[4], fragmentLabel)
+        assertEquals(2, labels.toSet().size)
+    }
+
+    @Test
+    fun `a clear winner is not overridden by the tie-break`() {
+        val near = (0 until 4).map { floatArrayOf(1f, 0f, 0.01f * it).l2Normalized() }
+        val far = (0 until 3).map { floatArrayOf(0f, 0f, 1f).l2Normalized() }
+        val fragment = listOf(floatArrayOf(0.99f, 0.14f, 0f).l2Normalized())
+
+        val labels = clusterer(assign = 0.9)
+            .cluster(CosineDistance.matrix(near + far + fragment), emptySet())
+
+        assertEquals("fragment belongs with the group it is close to", labels[0], labels.last())
+    }
+
+    @Test
     fun `labels are contiguous from zero`() {
         val labels = clusterer().cluster(
             CosineDistance.matrix(distinctGroups(perGroup = 3, groups = 4)),

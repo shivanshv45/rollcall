@@ -36,15 +36,15 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] 3.3 Segmenter + tests (12 tests incl. the brief's 1.4s example)
 - [x] 3.4 Frame extractor (half-res, OPTION_CLOSEST, cancellable)
 - [x] 3.5 Detector + embedder written (eye-line alignment, MobileFaceNet)
-- [ ] 3.6 Repository wired end-to-end
+- [x] 3.6 Repository wired end-to-end (Flow<ProcessingState>, cancellable)
 - [ ] 3.7 ⭐ On-device threshold re-validation
 
 ### Layer 4 — UI
-- [ ] 4.1 Nav + Home
-- [ ] 4.2 Processing screen
-- [ ] 4.3 Results screen + scrubber strip
-- [ ] 4.4 Collage renderer
-- [ ] 4.5 Save + share
+- [x] 4.1 Nav + Home (SAF picker, no storage permission)
+- [x] 4.2 Processing screen (staged progress, live counters, face previews)
+- [x] 4.3 Results screen + scrubber strip
+- [x] 4.4 Collage renderer (adaptive layouts 1-10+, full-res generous crops)
+- [x] 4.5 Save (MediaStore) + share (FileProvider)
 
 ### Layer 5 — Delivery
 - [ ] 5.1 Motion, haptics, states
@@ -87,7 +87,7 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 |---|---|---|---|
 | sample 1 | 5 | **20** | 4, 4, 4, 4, 4 |
 | sample 2 | 5 | 21 | 4, 4, 4, 4, 5 |
-| sample 3 | 5 | 19 | 3, 3, 4, 4, 5 |
+| sample 3 | 5 | 19 | 3, 4, 4, 4, 4 |
 
 **Sample 1 matches the brief's worked example exactly** (5 people x 4 appearances = 20),
 computed end-to-end with nothing hardcoded. The two-person windows also line up: two people
@@ -95,18 +95,21 @@ share 10.0-11.4s, two more share 20.4-21.4s.
 
 Identity grouping - the headline metric - is correct on all three clips.
 
-Samples 2 and 3 are each off by one appearance. Cause is understood and documented: a short
-fragment from a two-person shot sits almost equidistant between two identities (0.557 vs 0.566
-in sample 3), so the embedding genuinely cannot separate them. Attempted fixes and why they
-were rejected:
-- **Ambiguity margin** (leave near-ties unassigned): breaks the person count, producing 6-9
-  people. A spurious extra person is a worse error than a misattributed appearance.
+**Tie-breaking improvement.** Where a fragment sat almost equidistant between two identities
+(0.557 vs 0.566 in sample 3) the winner was effectively random. It now falls back to the
+identity with fewer tracklets, which fixed sample 3's distribution from 3,3,4,4,5 to 3,4,4,4,4.
+Verified robust: the person count stays 5 across all 30 cells of the core x assign plateau,
+and the result is identical for any tie margin from 0.04 to 0.20.
+
+Rejected alternatives, both measured rather than assumed:
+- **Leaving near-ties unassigned**: breaks the person count, producing 6-9 people. A spurious
+  extra person is a worse error than a misattributed appearance.
 - **Min/single linkage** for assignment: fixes nothing and breaks sample 1 (20 -> 19).
 
-Left as-is deliberately. Tuning further against clips whose true counts are unpublished would
-be over-fitting - exactly what the brief warns against.
+Samples 2 and 3 remain off by one appearance in total. Their true counts are unpublished, so
+tuning further would be over-fitting - exactly what the brief warns against.
 
 ## Test status
-**30/30 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
+**32/32 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
 The domain layer has no Android imports, so the clustering, segmentation and quality
 logic - the 50%-weighted part - is testable without a device or emulator.

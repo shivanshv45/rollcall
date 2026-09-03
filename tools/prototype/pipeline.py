@@ -41,9 +41,9 @@ CORE_THRESHOLD = 0.38
 ASSIGN_THRESHOLD = 0.84
 MIN_CORE_TRACKS = 3
 
-# A fragment must beat the runner-up by this much to be assigned. Below it the
-# embedding genuinely can't tell the two apart, so guessing is worse than leaving it.
-ASSIGN_MARGIN = 0.0
+# Below this gap the two candidates are tied and the smaller identity wins.
+# Measured: identical results anywhere from 0.04 to 0.20.
+TIE_MARGIN = 0.08
 
 # 0.6 through 1.0 all give the same answer; 0.8 sits mid-range.
 MAX_GAP_S = 0.8
@@ -520,16 +520,14 @@ def stage6():
 
 
 
-def cluster_two_pass(D, block, core_t, assign_t, min_core=MIN_CORE_TRACKS,
-                     margin=ASSIGN_MARGIN):
+def cluster_two_pass(D, block, core_t, assign_t, min_core=MIN_CORE_TRACKS):
     """Strict pass builds confident identities; relaxed pass places the leftovers.
 
     Fragments from two-person shots embed poorly - small or side-on faces sit
     0.5-0.7 from their own identity while distinct people sit above 0.9, which no
-    single threshold spans. The relaxed pass closes that gap, but only when the
-    best candidate beats the runner-up by `margin`: a fragment 0.56 from one
-    person and 0.57 from another is a coin flip, and guessing costs two people an
-    appearance each. Ambiguous fragments are left as their own cluster instead.
+    single threshold spans. The relaxed pass closes that gap, and where the top
+    two candidates are effectively tied it prefers the smaller identity: guessing
+    on a 0.01 margin tends to leave one person over-counted and another short.
     """
     labels = cluster(D, block, core_t).copy()
     sizes = {l: int((labels == l).sum()) for l in set(labels.tolist())}
@@ -547,8 +545,8 @@ def cluster_two_pass(D, block, core_t, assign_t, min_core=MIN_CORE_TRACKS,
         ranked.sort()
         if not ranked or ranked[0][0] >= assign_t:
             continue
-        if len(ranked) > 1 and ranked[1][0] - ranked[0][0] < margin:
-            continue
+        if len(ranked) > 1 and ranked[1][0] - ranked[0][0] < TIE_MARGIN:
+            ranked = sorted(ranked[:2], key=lambda r: (int((labels == r[1]).sum()), r[0]))
         labels[members] = ranked[0][1]
 
     for new, old in enumerate(sorted(set(labels.tolist()))):

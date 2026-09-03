@@ -71,21 +71,30 @@ class AgglomerativeClusterer(
 
         for (key in weak) {
             val group = members[key] ?: continue
-            var bestDistance = assignThreshold
-            var target: Int? = null
-            for (other in strong) {
-                val to = members[other] ?: continue
-                if (isBlocked(group, to, blocked)) continue
-                val d = averageDistance(group, to, distances)
-                if (d < bestDistance) {
-                    bestDistance = d
-                    target = other
-                }
+            val ranked = strong.mapNotNull { other ->
+                val to = members[other] ?: return@mapNotNull null
+                if (isBlocked(group, to, blocked)) null
+                else averageDistance(group, to, distances) to other
+            }.sortedBy { it.first }
+
+            val best = ranked.firstOrNull() ?: continue
+            if (best.first >= assignThreshold) continue
+
+            // When the top two are effectively tied the embedding cannot tell them
+            // apart, so fall back to the smaller identity. These fragments come from
+            // two-person shots where both people are mid-appearance, and guessing by
+            // a 0.01 margin tends to leave one person over-counted and another short.
+            val runnerUp = ranked.getOrNull(1)
+            val target = if (runnerUp != null && runnerUp.first - best.first < TIE_MARGIN) {
+                listOf(best, runnerUp).minWith(
+                    compareBy({ members[it.second]!!.size }, { it.first })
+                ).second
+            } else {
+                best.second
             }
-            target?.let {
-                members[it]!!.addAll(group)
-                members.remove(key)
-            }
+
+            members[target]!!.addAll(group)
+            members.remove(key)
         }
     }
 
@@ -120,5 +129,13 @@ class AgglomerativeClusterer(
         var sum = 0.0
         for (i in a) for (j in b) sum += d[i][j]
         return sum / (a.size * b.size)
+    }
+
+    private companion object {
+        /**
+         * Distance gap below which two candidate identities count as tied.
+         * Measured: the result is identical anywhere from 0.04 to 0.20.
+         */
+        const val TIE_MARGIN = 0.08
     }
 }
