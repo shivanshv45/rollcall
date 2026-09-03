@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
+import com.shivansh.rollcall.CrashReporter
 import com.shivansh.rollcall.data.detection.DetectedFace
 import com.shivansh.rollcall.data.detection.ImageAnalysis
 import com.shivansh.rollcall.data.detection.MlKitFaceDetector
@@ -103,9 +104,11 @@ class ProcessingRepository @Inject constructor(
         }
 
         emit(ProcessingState.Working(Stage.GroupingPeople, DETECT_SHARE, scanned, detected.size, previews.toList()))
+        trace("detected ${detected.size} faces over $scanned frames, ${cuts.size} cuts")
 
         val builder = TrackletBuilder(frameIntervalMs = config.frameIntervalMs)
         val tracklets = builder.build(detected.map { it.sample }, cuts)
+        trace("built ${tracklets.size} tracklets")
         val labels = AgglomerativeClusterer(
             coreThreshold = config.coreThreshold,
             assignThreshold = config.assignThreshold,
@@ -114,6 +117,7 @@ class ProcessingRepository @Inject constructor(
             CosineDistance.matrix(tracklets.map { it.embedding }),
             builder.cannotLink(tracklets),
         )
+        trace("clustered into ${labels.toSet().size} identities")
 
         emit(ProcessingState.Working(Stage.ChoosingShots, CHOOSING_SHARE, scanned, detected.size, previews.toList()))
 
@@ -137,9 +141,15 @@ class ProcessingRepository @Inject constructor(
             }
             .sortedBy { it.appearances.firstOrNull()?.startMs ?: Long.MAX_VALUE }
             .mapIndexed { index, person -> person.copy(id = index) }
+            .filter { it.appearances.isNotEmpty() }
 
-        Log.i(TAG, "${people.size} people, ${people.sumOf { it.appearanceCount }} appearances " +
-            "from $scanned frames in ${System.currentTimeMillis() - started}ms")
+        if (people.isEmpty()) {
+            emit(ProcessingState.Failed(Failure.NoFacesFound))
+            return@flow
+        }
+
+        trace("${people.size} people, ${people.sumOf { it.appearanceCount }} appearances " +
+            "in ${System.currentTimeMillis() - started}ms")
 
         emit(ProcessingState.Done(VideoAnalysis(people, duration)))
     }.catch { error ->
@@ -159,6 +169,11 @@ class ProcessingRepository @Inject constructor(
             )
         )
     }.flowOn(Dispatchers.Default)
+
+    private fun trace(message: String) {
+        Log.i(TAG, message)
+        CrashReporter.note(message)
+    }
 
     /**
      * Small square crop for the progress strip.

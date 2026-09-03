@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.shivansh.rollcall.CrashReporter
 import com.shivansh.rollcall.domain.model.Failure
 import com.shivansh.rollcall.domain.model.ProcessingState
 import com.shivansh.rollcall.ui.collage.CollageScreen
@@ -39,6 +40,12 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
 
     var showCollage by remember { mutableStateOf(false) }
     var savedMessage by remember { mutableStateOf<String?>(null) }
+    var crashReport by remember { mutableStateOf(CrashReporter.lastReport(context)) }
+
+    crashReport?.let { report ->
+        DiagnosticsScreen(report) { crashReport = null }
+        return
+    }
 
     val screen = when {
         showCollage -> Screen.Collage
