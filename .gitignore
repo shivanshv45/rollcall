@@ -1,0 +1,10 @@
+android-sdk/
+tools/prototype/cmdline-tools.zip
+tools/prototype/models/
+__pycache__/
+*.pyc
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
