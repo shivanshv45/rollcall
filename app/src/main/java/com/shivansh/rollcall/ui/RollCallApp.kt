@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.shivansh.rollcall.CrashReporter
 import com.shivansh.rollcall.domain.model.Failure
 import com.shivansh.rollcall.domain.model.ProcessingState
+import com.shivansh.rollcall.domain.model.VideoAnalysis
 import com.shivansh.rollcall.ui.collage.CollageScreen
 import com.shivansh.rollcall.ui.components.EmptyState
 import com.shivansh.rollcall.ui.components.PrimaryButton
@@ -30,12 +31,37 @@ import com.shivansh.rollcall.ui.processing.ProcessingScreen
 import com.shivansh.rollcall.ui.result.ResultScreen
 import com.shivansh.rollcall.ui.theme.Ink
 
-private enum class Screen { Home, Processing, Result, Collage, Error }
+/**
+ * What a screen needs to draw itself, captured at the moment it was routed to.
+ *
+ * AnimatedContent keeps rendering the outgoing screen for the length of the
+ * crossfade, so a branch that reads the live state renders one frame after that
+ * state has already moved on. Carrying the snapshot in the target means the
+ * outgoing screen fades out showing the data it was built with.
+ */
+private sealed interface Screen {
+    data object Home : Screen
+    data class Processing(val state: ProcessingState.Working) : Screen
+    data class Result(val analysis: VideoAnalysis) : Screen
+    data object Collage : Screen
+    data class Error(val failure: Failure) : Screen
+}
+
+/** Which screen to show, so the transition animates on identity, not on payload. */
+private val Screen.key: Int
+    get() = when (this) {
+        Screen.Home -> 0
+        is Screen.Processing -> 1
+        is Screen.Result -> 2
+        Screen.Collage -> 3
+        is Screen.Error -> 4
+    }
 
 @Composable
 fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     val collage by viewModel.collage.collectAsState()
+    val portraits by viewModel.portraits.collectAsState()
     val context = LocalContext.current
 
     var showCollage by remember { mutableStateOf(false) }
@@ -47,33 +73,36 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
         return
     }
 
-    val screen = when {
+    val current = state
+    val screen: Screen = when {
         showCollage -> Screen.Collage
-        state is ProcessingState.Working -> Screen.Processing
-        state is ProcessingState.Done -> Screen.Result
-        state is ProcessingState.Failed -> Screen.Error
+        current is ProcessingState.Working -> Screen.Processing(current)
+        current is ProcessingState.Done -> Screen.Result(current.result)
+        current is ProcessingState.Failed -> Screen.Error(current.reason)
         else -> Screen.Home
     }
 
     // A new run should not inherit the last run's confirmation text.
-    LaunchedEffect(screen) { if (screen != Screen.Collage) savedMessage = null }
+    LaunchedEffect(screen.key) { if (screen !is Screen.Collage) savedMessage = null }
 
     Box(Modifier.fillMaxSize().background(Ink)) {
         AnimatedContent(
             targetState = screen,
             transitionSpec = { fadeIn(spring(stiffness = 380f)) togetherWith fadeOut() },
+            contentKey = { it.key },
             label = "screen",
-        ) { current ->
-            when (current) {
+        ) { target ->
+            when (target) {
                 Screen.Home -> HomeScreen(onVideoPicked = viewModel::process)
 
-                Screen.Processing -> ProcessingScreen(
-                    state = state as ProcessingState.Working,
+                is Screen.Processing -> ProcessingScreen(
+                    state = target.state,
                     onCancel = viewModel::cancel,
                 )
 
-                Screen.Result -> ResultScreen(
-                    analysis = (state as ProcessingState.Done).result,
+                is Screen.Result -> ResultScreen(
+                    analysis = target.analysis,
+                    portraits = portraits,
                     onCreateCollage = {
                         viewModel.buildCollage()
                         showCollage = true
@@ -97,8 +126,8 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
                     onBack = { showCollage = false },
                 )
 
-                Screen.Error -> ErrorScreen(
-                    failure = (state as ProcessingState.Failed).reason,
+                is Screen.Error -> ErrorScreen(
+                    failure = target.failure,
                     onRetry = viewModel::reset,
                 )
             }
