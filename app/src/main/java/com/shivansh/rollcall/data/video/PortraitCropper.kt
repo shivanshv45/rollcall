@@ -25,7 +25,7 @@ object PortraitCropper {
     private const val NEIGHBOUR_GAP = 0.9f
 
     /** Floor on crop width relative to the face, so it never becomes a mugshot. */
-    private const val MIN_CROP_SCALE = 1.6f
+    private const val MIN_CROP_SCALE = 1.3f
 
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 

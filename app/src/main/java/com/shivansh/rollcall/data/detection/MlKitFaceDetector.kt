@@ -6,6 +6,7 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.shivansh.rollcall.domain.model.BoundingBox
+import com.shivansh.rollcall.domain.model.DetectionFilter
 import com.shivansh.rollcall.domain.model.FaceQuality
 import com.shivansh.rollcall.domain.model.FaceSample
 import com.shivansh.rollcall.domain.model.PipelineConfig
@@ -44,32 +45,36 @@ class MlKitFaceDetector @Inject constructor(
                 .addOnFailureListener { cont.resumeWithException(it) }
         }
         faces.forEach { tally?.countReturned(it.boundingBox.width().toFloat() / bitmap.width) }
-        val detected = faces.mapNotNull { it.toDetected(bitmap, timestampMs, tally) }
 
-        // Record who else was on screen. Two faces in one frame are different
-        // people, and a portrait crop has to stop short of the neighbour.
-        if (detected.size < 2) return detected
-        val boxes = detected.map { it.sample.box }
-        return detected.mapIndexed { i, face ->
+        // One box per face. A duplicate or nested detection would share this
+        // timestamp with the real one and be treated as a second person forever.
+        val rawBoxes = faces.map { it.boundingBox.toBox() }
+        val keep = DetectionFilter.suppressOverlaps(rawBoxes)
+        tally?.countDuplicates(faces.size - keep.size)
+        val boxes = keep.map { rawBoxes[it] }
+
+        val detected = keep.mapNotNull { i -> faces[i].toDetected(bitmap, timestampMs, tally) }
+        if (boxes.size < 2) return detected
+
+        // Neighbours come from every real face on screen, blurred or not: the
+        // portrait crop has to stop short of them either way.
+        return detected.map { face ->
             face.copy(
                 sample = face.sample.copy(
-                    coFaces = boxes.filterIndexed { j, _ -> j != i },
+                    coFaces = boxes.filter { it != face.sample.box },
                 )
             )
         }
     }
+
+    private fun android.graphics.Rect.toBox() = BoundingBox(left, top, width(), height())
 
     private fun Face.toDetected(
         bitmap: Bitmap,
         timestampMs: Long,
         tally: RecallTally?,
     ): DetectedFace? {
-        val box = BoundingBox(
-            left = boundingBox.left,
-            top = boundingBox.top,
-            width = boundingBox.width(),
-            height = boundingBox.height(),
-        )
+        val box = boundingBox.toBox()
         if (box.width <= 0 || box.height <= 0) {
             tally?.countDegenerateBox()
             return null
