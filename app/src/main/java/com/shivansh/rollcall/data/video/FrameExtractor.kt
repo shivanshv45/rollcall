@@ -24,15 +24,11 @@ class FrameExtractor @Inject constructor(
     }
 
     /**
-     * Frames at the configured cadence, scaled down.
+     * Frames at the configured cadence, decoded at half size.
      *
-     * OPTION_CLOSEST rather than OPTION_CLOSEST_SYNC: sync-only seeking snaps
-     * several requests onto the same keyframe, which would quietly collapse the
-     * timeline the appearance counts are built from.
-     *
-     * Decoding at half resolution is the single biggest memory saving here, and
-     * neither detection nor embedding gains anything from the extra pixels. The
-     * one full-resolution decode happens later, for the chosen shot only.
+     * OPTION_CLOSEST, not OPTION_CLOSEST_SYNC: sync-only seeking snaps several
+     * requests onto the same keyframe and collapses the timeline the appearance
+     * counts are built from.
      */
     fun frames(uri: Uri): Flow<VideoFrame> = flow {
         retriever(uri).use { mmr ->
@@ -48,8 +44,8 @@ class FrameExtractor @Inject constructor(
                     config.workWidth,
                     config.workHeight,
                 )
-                // Some codecs return null near boundaries; skipping that sample is
-                // better than aborting a run that is otherwise fine.
+                // Some codecs return null near boundaries. Skip the sample
+                // rather than abort a run that is otherwise fine.
                 if (bitmap != null) emit(VideoFrame(t, bitmap))
                 t += step
             }
@@ -59,11 +55,8 @@ class FrameExtractor @Inject constructor(
     /**
      * A single frame, decoded no larger than [maxWidth] x [maxHeight].
      *
-     * getFrameAtTime decodes at the video's own resolution, so a 4K clip lands a
-     * ~33MB bitmap in the heap for what ends up as a tile a few hundred pixels
-     * wide. Asking the decoder to scale keeps the peak proportional to what is
-     * actually drawn, which matters because these are decoded one per person in
-     * a row.
+     * getFrameAtTime would decode at the video's own resolution, which is ~33MB
+     * on a 4K clip for what ends up a few hundred pixels wide.
      */
     fun frameAt(
         uri: Uri,

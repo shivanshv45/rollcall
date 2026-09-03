@@ -21,9 +21,8 @@ import javax.inject.Inject
 /**
  * Draws the finished collage at Instagram-story size.
  *
- * Tiles are re-decoded from the video at output size rather than reused from
- * the downscaled working frame, and cropped generously around the face rather
- * than to the detected box, which the brief calls out specifically.
+ * Tiles are re-decoded from the video at output size rather than reused from the
+ * downscaled working frame, and cropped wide rather than to the detected box.
  */
 class CollageRenderer @Inject constructor(
     private val frames: FrameExtractor,
@@ -31,9 +30,8 @@ class CollageRenderer @Inject constructor(
 ) {
 
     /**
-     * @param showLabels draws each person's letter and appearance count over
-     *   their tile. Off gives a plain photo grid, which is what people want when
-     *   they are sharing the picture rather than reporting the numbers.
+     * @param showLabels draws each person's letter and appearance count on their
+     *   tile. Off gives a plain photo grid for sharing.
      */
     suspend fun render(
         uri: Uri,
@@ -47,8 +45,8 @@ class CollageRenderer @Inject constructor(
         val people = analysis.people
         val tiles = layoutFor(people.size)
 
-        // One portrait live at a time - decoding them all up front would hold a
-        // full frame per person at once.
+        // One portrait at a time; decoding them all up front holds a full frame
+        // per person at once.
         people.forEachIndexed { index, person ->
             val rect = tiles.getOrNull(index) ?: return@forEachIndexed
             val portrait = portrait(uri, person)
@@ -64,9 +62,8 @@ class CollageRenderer @Inject constructor(
     /**
      * Where each tile sits, chosen by how many people there are.
      *
-     * A single uniform grid for every count looks generic, and with an odd number
-     * leaves a hole. These give each count a deliberate shape - a hero plus a
-     * grid for five, which is the common case here.
+     * One uniform grid for every count looks generic and leaves a hole on odd
+     * numbers, so each count gets its own shape.
      */
     private fun layoutFor(count: Int): List<RectF> {
         val left = MARGIN
@@ -105,7 +102,7 @@ class CollageRenderer @Inject constructor(
             }
             4 -> grid(2, 2)
             5 -> {
-                // Hero across the top, four beneath. The magazine-cover shape.
+                // Hero across the top, four beneath.
                 val heroH = height * 0.34f
                 val restTop = top + heroH + g
                 val cellW = (width - g) / 2
@@ -135,8 +132,7 @@ class CollageRenderer @Inject constructor(
     /** The person's best frame, re-decoded for print size and cropped wide. */
     private fun portrait(uri: Uri, person: Person): Bitmap? {
         val sample = person.representative
-        // Two tile-widths of detail is plenty once it is drawn at tile size, and
-        // caps the decode on a 4K clip.
+        // Plenty of detail once drawn at tile size, and caps a 4K decode.
         val frame = frames.frameAt(uri, sample.timestampMs, WIDTH, HEIGHT) ?: return null
 
         val box = sample.box

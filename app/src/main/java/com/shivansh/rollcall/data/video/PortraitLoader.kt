@@ -11,12 +11,10 @@ import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 
 /**
- * Decodes the representative shot for each person, sized for the roster.
+ * Decodes each person's representative shot at roster size.
  *
- * The roster is where the grouping is actually judged, so it needs the faces
- * themselves rather than a letter in a coloured circle. These are small and
- * held for as long as the results are on screen, so they are decoded once here
- * instead of per recomposition.
+ * Done once when the results land rather than per recomposition. The roster is
+ * where the grouping gets judged, so it needs faces, not just letters.
  */
 class PortraitLoader @Inject constructor(
     private val frames: FrameExtractor,
@@ -28,8 +26,8 @@ class PortraitLoader @Inject constructor(
             val out = LinkedHashMap<Int, Bitmap>(people.size)
             for (person in people) {
                 coroutineContext.ensureActive()
-                // A failure on one person should not cost the whole roster its
-                // pictures; that row falls back to the plain chip.
+                // One bad decode shouldn't cost the whole roster its pictures.
+                // That row falls back to the plain chip.
                 runCatching { portrait(uri, person) }
                     .getOrNull()
                     ?.let { out[person.id] = it }
@@ -55,13 +53,13 @@ class PortraitLoader @Inject constructor(
         frame.recycle()
 
         if (cropped.width <= THUMBNAIL_PX) return cropped
-        // Down to display size, so five of these cost well under a megabyte.
+        // Down to display size: five of these cost well under a megabyte.
         return Bitmap.createScaledBitmap(cropped, THUMBNAIL_PX, THUMBNAIL_PX, true)
             .also { if (it !== cropped) cropped.recycle() }
     }
 
     private companion object {
-        /** Enough detail to crop from, without decoding the source at full size. */
+        /** Enough detail to crop from without decoding the source at full size. */
         const val DECODE_PX = 720
 
         /** Roughly the row height at 3x density. */

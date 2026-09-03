@@ -32,12 +32,10 @@ import com.shivansh.rollcall.ui.result.ResultScreen
 import com.shivansh.rollcall.ui.theme.Ink
 
 /**
- * What a screen needs to draw itself, captured at the moment it was routed to.
+ * What a screen needs to draw itself, captured when it was routed to.
  *
- * AnimatedContent keeps rendering the outgoing screen for the length of the
- * crossfade, so a branch that reads the live state renders one frame after that
- * state has already moved on. Carrying the snapshot in the target means the
- * outgoing screen fades out showing the data it was built with.
+ * AnimatedContent keeps rendering the outgoing screen through the crossfade, so
+ * a branch that reads live state renders one frame after that state moved on.
  */
 private sealed interface Screen {
     data object Home : Screen
@@ -47,7 +45,7 @@ private sealed interface Screen {
     data class Error(val failure: Failure) : Screen
 }
 
-/** Which screen to show, so the transition animates on identity, not on payload. */
+/** Animates on screen identity, so a progress tick is not a screen change. */
 private val Screen.key: Int
     get() = when (this) {
         Screen.Home -> 0

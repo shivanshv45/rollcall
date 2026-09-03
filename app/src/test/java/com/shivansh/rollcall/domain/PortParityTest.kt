@@ -9,12 +9,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Checks the Kotlin clusterer against the Python prototype it was ported from.
+ * Checks the Kotlin clusterer against the Python prototype it came from.
  *
- * The fixture holds real tracklet distance matrices from the three sample clips,
- * along with the cannot-link pairs and the cluster count the tuned prototype
- * produced. Synthetic tests prove the algorithm behaves sensibly; this proves the
- * port did not drift from the version whose thresholds were actually measured.
+ * The fixture holds real distance matrices from the three sample clips with the
+ * cluster counts the tuned prototype produced. Synthetic tests show the algorithm
+ * is sensible; this shows the port did not drift.
  *
  * Regenerate with:  python tools/prototype/pipeline.py 8
  */

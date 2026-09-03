@@ -9,13 +9,11 @@ import kotlin.math.roundToInt
 /**
  * Cuts a head-and-shoulders portrait out of a frame.
  *
- * The brief rules out cropping tight to the detected box, and it is right to:
- * a box-tight crop of a face that is 90px wide on a downscaled frame gives a
- * soft, unusable tile. [cropScale] reaches well outside the box, and the crop
- * sits slightly high because centring a face exactly reads as a mugshot.
+ * [cropScale] reaches well outside the detected box, since a box-tight crop of a
+ * 90px face gives a soft, unusable tile. The crop sits slightly high because
+ * centring a face exactly reads as a mugshot.
  *
- * Shared by the collage and the results roster so a person's portrait is framed
- * identically in both.
+ * Shared by the collage and the results roster so both frame a person the same.
  */
 object PortraitCropper {
 
@@ -27,7 +25,7 @@ object PortraitCropper {
     /**
      * @param faceScale maps the box, measured on the working frame, onto [frame].
      * @param aspect height / width of the wanted crop.
-     * @return a new bitmap; [frame] is left alone for the caller to recycle.
+     * @return a new bitmap; [frame] is the caller's to recycle.
      */
     fun crop(
         frame: Bitmap,
@@ -44,8 +42,8 @@ object PortraitCropper {
         val centerX = boxCenterX * faceScale
         val centerY = boxCenterY * faceScale - faceH * HEADROOM
 
-        // Never ask for more than the frame holds, or the crop silently slides
-        // off centre once it is clamped below.
+        // Never ask for more than the frame holds, or the clamp below slides
+        // the crop off centre.
         val cropW = (faceW * cropScale).coerceAtMost(frame.width.toFloat())
         val cropH = (cropW * aspect).coerceAtMost(frame.height.toFloat())
 
@@ -57,8 +55,8 @@ object PortraitCropper {
         val right = (left + cropW.roundToInt()).coerceIn(left + 1, frame.width)
         val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frame.height)
 
-        // Composited rather than sliced: Bitmap.createBitmap hands back the
-        // source when the crop covers it, and callers recycle the frame.
+        // Composited, not sliced: createBitmap hands back the source when the
+        // crop covers it, and callers recycle the frame.
         val out = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
         Canvas(out).drawBitmap(
             frame,

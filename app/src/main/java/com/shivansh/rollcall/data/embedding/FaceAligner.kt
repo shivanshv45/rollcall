@@ -9,30 +9,16 @@ import com.shivansh.rollcall.domain.model.BoundingBox
 import kotlin.math.atan2
 import kotlin.math.hypot
 
-/**
- * Puts a face into the fixed geometry the embedding model was trained on.
- *
- * Rotates so the eye line is level and scales so the pupils land on the same
- * two points in every crop. Removing in-plane rotation and normalising scale is
- * the cheapest accuracy win available, and it is why the detector is asked for
- * landmarks at all.
- */
+/** Levels the eye line and scales the face to the geometry the model expects. */
 object FaceAligner {
 
     const val SIZE = 112
 
-    /**
-     * Pupil separation as a fraction of the crop width.
-     *
-     * The prototype used 0.42 against MediaPipe's outer eye corners. ML Kit
-     * reports pupil centres, which span about 70% of that on the same face, so
-     * holding 0.42 here zooms every crop in by a third and cuts the head off.
-     * 0.31 puts the pupils where the model's own 112px alignment template puts
-     * them, and matches what the prototype's thresholds were measured against.
-     */
+    // Pupil span as a fraction of crop width. The prototype's 0.42 was for
+    // MediaPipe's eye corners; ML Kit gives pupil centres, which sit closer.
     const val EYE_SPAN = 0.31f
 
-    /** Where the eye line sits vertically, leaving room for chin and hair. */
+    /** Vertical position of the eye line, leaving room for chin and hair. */
     const val EYE_HEIGHT = 0.42f
 
     private const val MIN_EYE_DISTANCE_PX = 2f
@@ -41,13 +27,10 @@ object FaceAligner {
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 
     /**
-     * Always returns a crop. A face that cannot be landmark-aligned - no eyes
-     * reported, or a profile turned far enough that the pupils nearly coincide -
-     * still embeds usefully from its box, and dropping it instead costs a whole
-     * appearance. The quality score already ranks these below aligned faces.
+     * Always returns a fresh SIZE x SIZE crop; [frame] stays the caller's to recycle.
      *
-     * @return a fresh SIZE x SIZE crop. [frame] is untouched and stays the
-     *   caller's to recycle.
+     * Faces with no usable eye landmarks fall back to the box. A rough crop still
+     * embeds well enough to cluster, and dropping one costs a whole appearance.
      */
     fun align(
         frame: Bitmap,
@@ -62,9 +45,8 @@ object FaceAligner {
         if (matrix != null) {
             canvas.drawBitmap(frame, matrix, paint)
         } else {
-            // Nothing to align to, so take the box with a generous margin. Drawn
-            // straight from the source rect: an intermediate createBitmap crop
-            // can alias the frame.
+            // Straight from the source rect. An intermediate createBitmap crop
+            // can alias the frame, which the caller still owns.
             val margin = (box.width * FALLBACK_MARGIN).toInt()
             val srcLeft = (box.left - margin).coerceIn(0, frame.width - 1)
             val srcTop = (box.top - margin).coerceIn(0, frame.height - 1)
@@ -81,13 +63,11 @@ object FaceAligner {
     }
 
     /**
-     * Frame-to-crop transform that levels the eyes and pins them to the template.
+     * Transform that levels the eyes and pins them to the template.
      *
-     * The two eyes can arrive in either order. ML Kit names them from the
-     * subject's point of view, so its LEFT_EYE is the one further right in the
-     * image; taken as image-left it makes the eye vector point backwards and
-     * the rotation come out near 180 degrees, which turns every face upside
-     * down. Sorting by x makes the result independent of the naming.
+     * Eyes are sorted by x rather than trusted by name: ML Kit's LEFT_EYE is the
+     * subject's left, so it sits further right in the image. Taking it as
+     * image-left flips every face 180 degrees.
      */
     fun matrixFor(eyeA: Pair<Float, Float>, eyeB: Pair<Float, Float>): Matrix? {
         val (near, far) = if (eyeA.first <= eyeB.first) eyeA to eyeB else eyeB to eyeA

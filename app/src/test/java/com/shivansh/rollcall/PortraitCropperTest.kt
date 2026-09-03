@@ -10,9 +10,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The crop runs on every representative shot, on frames whose size is not known
- * until decode time, with boxes that can sit hard against an edge. Getting it
- * wrong shows up as a crash or a face half out of the tile.
+ * Runs on every representative shot, at sizes not known until decode time, with
+ * boxes that can sit hard against an edge.
  */
 @RunWith(RobolectricTestRunner::class)
 class PortraitCropperTest {
@@ -43,8 +42,7 @@ class PortraitCropperTest {
     @Test
     fun `returns a new bitmap rather than the source`() {
         val source = frame(400, 700)
-        // A crop wide enough to cover the frame is where createBitmap would
-        // hand back the source, which the caller then recycles.
+        // A crop covering the frame is where createBitmap hands back the source.
         val out = crop(source, 200f, 350f, boxW = 400f, boxH = 400f, cropScale = 4f)
 
         assertFalse(out === source)
@@ -70,8 +68,7 @@ class PortraitCropperTest {
 
     @Test
     fun `a face against the top edge still yields a valid crop`() {
-        // Headroom pushes the crop above the frame here, which is the case that
-        // produced a negative origin before clamping.
+        // Headroom pushes the crop above the frame, giving a negative origin.
         val out = crop(frame(400, 700), centerX = 200f, centerY = 2f)
         assertTrue(out.width > 0)
         assertTrue(out.height > 0)

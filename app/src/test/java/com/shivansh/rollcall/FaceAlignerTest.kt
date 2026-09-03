@@ -16,11 +16,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The alignment is the one place the port diverges from the prototype in what
- * it is handed: MediaPipe gave the prototype eyes named by image side, ML Kit
- * names them by the subject's side. Getting that wrong embeds every face upside
- * down, which is invisible in a unit of code and only shows up as one person
- * clustering into three.
+ * MediaPipe named eyes by image side; ML Kit names them by the subject's side.
+ *
+ * Getting that wrong embeds every face upside down. Nothing about the code looks
+ * wrong, and it only shows up as one person clustering into three.
  */
 @RunWith(RobolectricTestRunner::class)
 class FaceAlignerTest {
@@ -122,11 +121,7 @@ class FaceAlignerTest {
         assertEquals(SIZE, out.width)
     }
 
-    /**
-     * A profile turned far enough that the pupils nearly coincide used to be
-     * dropped outright, which costs a whole appearance for a face the detector
-     * found and boxed correctly.
-     */
+    /** A far profile used to be dropped outright, costing a whole appearance. */
     @Test
     fun `an unalignable profile still yields a crop`() {
         val frame = Bitmap.createBitmap(540, 960, Bitmap.Config.ARGB_8888)

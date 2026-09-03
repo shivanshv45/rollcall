@@ -14,12 +14,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Checks the collage geometry and that drawing into it actually works.
+ * Checks the collage geometry and that drawing into it works.
  *
- * The layout maths is a copy of CollageRenderer.layoutFor - it is private and
- * takes a video Uri, which a JVM test cannot supply. Keeping a mirror here is a
- * deliberate trade: it catches overlapping or off-canvas tiles, which is the
- * failure that would ruin the output.
+ * The layout maths mirrors CollageRenderer.layoutFor, which is private and needs
+ * a video Uri a JVM test cannot supply. Worth the duplication to catch
+ * overlapping or off-canvas tiles.
  */
 @RunWith(RobolectricTestRunner::class)
 class CollageLayoutTest {

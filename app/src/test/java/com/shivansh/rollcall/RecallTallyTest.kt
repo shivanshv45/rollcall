@@ -6,9 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * A missed person is the worst failure this app has, and three separate gates
- * can cause one silently. The tally is what turns "it missed someone" into a
- * number naming the gate, so it has to add up.
+ * A missed person is the worst failure here, and three gates can cause one.
+ *
+ * The tally turns "it missed someone" into a number naming the gate, so it has
+ * to add up.
  */
 class RecallTallyTest {
 
@@ -40,11 +41,7 @@ class RecallTallyTest {
         assertEquals(listOf(0.06f, 0.12f, 0.30f), tally.smallestKeptRatios())
     }
 
-    /**
-     * The smallest face the detector reports sitting on the size floor is the
-     * signal that the floor is clipping faces upstream, where nothing
-     * downstream can recover them.
-     */
+    /** A smallest face sitting on the floor means the floor is clipping faces. */
     @Test
     fun `the smallest ratio exposes a floor that is clipping faces`() {
         val tally = RecallTally()

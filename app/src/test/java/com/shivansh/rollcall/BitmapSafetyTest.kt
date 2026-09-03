@@ -15,11 +15,8 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Guards the bug that crashed the app on a real phone.
  *
- * Bitmap.createBitmap(source, x, y, w, h) hands back the source object when the
- * crop covers the whole thing. The pipeline recycles each frame right after use,
- * so any crop that aliased its frame became a recycled bitmap in the UI, and
- * drawing it threw. These tests pin the behaviour down and prove the replacement
- * never aliases.
+ * createBitmap(source, x, y, w, h) hands back the source when the crop covers
+ * the whole thing, and the pipeline recycles each frame right after use.
  */
 @RunWith(RobolectricTestRunner::class)
 class BitmapSafetyTest {

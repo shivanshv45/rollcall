@@ -22,15 +22,13 @@ class MlKitFaceDetector @Inject constructor(
 
     private val detector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
-            // Offline batch work, not a camera preview, so accuracy is the right
-            // side of the trade to spend on.
+            // Offline batch work, not a camera preview, so spend on accuracy.
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
             .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
             .setMinFaceSize(config.minFaceRatio)
-            // Tracking IDs are a local continuity hint only. They are position and
-            // motion based, not recognition, and they do not survive a whip-pan -
-            // identity comes from embeddings and clustering.
+            // Tracking IDs are a continuity hint only. They are motion-based, not
+            // recognition, and do not survive a whip-pan.
             .enableTracking()
             .build()
     )

@@ -8,9 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Ids double as the displayed label and as an index into the list, so they have
- * to stay contiguous over the people actually shown - a gap reads as a roster
- * running "A, B, D, E" and puts every lookup by id off the end.
+ * Ids are both the displayed label and an index into the list.
+ *
+ * A gap reads as a roster running "A, B, D, E" and puts lookups off the end.
  */
 class PersonIdentityTest {
 
@@ -74,9 +74,8 @@ class PersonIdentityTest {
     }
 
     /**
-     * The sort alone happens to park empty people last, so numbering before
-     * filtering only breaks once anything is dropped mid-list. Filtering first
-     * makes contiguity hold regardless of order.
+     * The sort parks empty people last, so numbering before filtering only breaks
+     * once something is dropped mid-list. Filtering first holds either way.
      */
     @Test
     fun `ids stay contiguous when a dropped person sorts mid-list`() {

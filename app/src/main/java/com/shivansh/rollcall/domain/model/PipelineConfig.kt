@@ -1,13 +1,10 @@
 package com.shivansh.rollcall.domain.model
 
 /**
- * Every tuned constant in the pipeline, in one place.
+ * Every tuned constant in the pipeline.
  *
- * The thresholds were measured, not chosen: a sweep over the three sample clips
- * (tools/prototype) plotted cluster count against threshold and these sit at the
- * midpoint of the region where all three clips report the same, correct count.
- * Sitting mid-plateau rather than at its edge is what makes them survive footage
- * they weren't tuned on.
+ * These came out of a threshold sweep over the sample clips (see tools/prototype).
+ * Each sits mid-plateau rather than at an edge, so it holds on other footage.
  */
 data class PipelineConfig(
     val sampleFps: Double = 5.0,
@@ -16,22 +13,16 @@ data class PipelineConfig(
     val workWidth: Int = 540,
     val workHeight: Int = 960,
 
-    /**
-     * Laplacian variance below this means whip-pan blur. The distribution is
-     * bimodal on this kind of footage - smears land under 2, usable frames above
-     * 5 - so anything in the empty middle works and the exact value doesn't matter.
-     */
+    // Laplacian variance below this is whip-pan blur. The distribution is
+    // bimodal (smears under 2, usable frames above 5) so anything between works.
     val blurFloor: Double = 3.0,
 
     /**
-     * Smallest face the detector will report, as a fraction of frame width.
+     * Smallest face ML Kit will report, as a fraction of frame width.
      *
-     * This is a recall floor, not a quality one: ML Kit never reports a face
-     * below it, so nothing downstream can recover one. Two people sharing a
-     * frame each take up far less width than a single speaker, so a floor set
-     * for the one-person case silently loses the two-person case - which is
-     * exactly where the appearance counts are decided. Small faces are still
-     * scored down by sizeRatio, so letting them through costs accuracy nothing.
+     * A recall floor, not a quality one: nothing downstream can recover a face
+     * the detector never returned. Kept low because two people sharing a frame
+     * each take up much less width than a single speaker.
      */
     val minFaceRatio: Float = 0.05f,
 
@@ -41,11 +32,8 @@ data class PipelineConfig(
     /** Cosine distance. Below this two tracklets are confidently the same person. */
     val coreThreshold: Double = 0.38,
 
-    /**
-     * Relaxed threshold for placing leftover fragments. Short or side-on faces
-     * from two-person shots sit 0.5-0.7 from their own identity while distinct
-     * people sit above 0.9, and no single threshold spans that.
-     */
+    // Relaxed threshold for leftover fragments. Side-on faces sit 0.5-0.7 from
+    // their own identity while different people sit above 0.9.
     val assignThreshold: Double = 0.84,
 
     /** Fewer tracklets than this makes a fragment, not a person. */

@@ -60,10 +60,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Faces for the roster. Best effort: the counts and the timeline are the
-     * result, and they stand on their own if a decode fails.
-     */
+    /** Best effort: the counts and timeline still stand if a decode fails. */
     private suspend fun loadPortraits(uri: Uri, done: ProcessingState.Done) {
         _portraits.value = try {
             portraitLoader.load(uri, done.result.people)
@@ -75,10 +72,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Cancels the run and returns to Idle rather than showing a Cancelled screen -
-     * the user asked to stop, so taking them back is the expected outcome.
-     */
+    /** Back to Idle rather than a Cancelled screen; the user asked to stop. */
     fun cancel() {
         running?.cancel()
         running = null
@@ -86,11 +80,10 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Renders on its own coroutine, so the pipeline's error handling does not
-     * cover it. Decoding a full-resolution frame per person can fail on a low
-     * memory device, and an escape here takes the whole app down.
+     * Runs on its own coroutine, so the pipeline's error handling does not cover
+     * it and an escaped throw would take the app down.
      */
-    /** Re-renders with labels on or off; the collage is a bitmap, so it has to be redrawn. */
+    /** The collage is a bitmap, so changing this means redrawing it. */
     fun setShowLabels(show: Boolean) {
         if (_showLabels.value == show) return
         _showLabels.value = show
@@ -157,9 +150,8 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Drops the roster thumbnails without recycling them. A composition may
-     * still be drawing one on the way out, and recycling underneath it crashes
-     * on a released bitmap; these are small enough to leave to the collector.
+     * Drops the thumbnails without recycling them. A composition may still be
+     * drawing one on the way out, and they are small enough to leave to the GC.
      */
     private fun releasePortraits() {
         _portraits.value = emptyMap()

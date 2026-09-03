@@ -10,17 +10,16 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Writes the last crash to a file the app can show on its next launch.
+ * Writes the last crash to a file the app shows on its next launch.
  *
- * Without a cable there is no logcat, so an uncaught exception otherwise leaves
- * nothing behind but a closed app. This keeps the stack trace and the device
- * details that usually matter for reproducing it.
+ * Without a cable there is no logcat, so a crash otherwise leaves nothing behind
+ * but a closed app.
  */
 object CrashReporter {
 
     private const val FILE = "last_crash.txt"
 
-    /** Recent pipeline milestones, included in the report to show how far it got. */
+    /** Recent pipeline milestones, to show how far the run got. */
     private val breadcrumbs = ArrayDeque<String>()
 
     @Synchronized

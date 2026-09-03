@@ -3,10 +3,8 @@ package com.shivansh.rollcall.data.detection
 /**
  * Counts what happened to every face the detector returned.
  *
- * A face can leave the pipeline at three separate gates, and all three are
- * silent - the run simply reports one person fewer with no indication of which
- * gate took them. Tallying the drops turns "it missed someone" into a number
- * that says where to look.
+ * Three gates can drop a face and all three are silent: the run just reports one
+ * person fewer. This turns "it missed someone" into a number naming the gate.
  */
 class RecallTally {
 
@@ -46,9 +44,8 @@ class RecallTally {
     /**
      * The smallest faces that survived, as a fraction of frame width.
      *
-     * If the smallest kept face sits right on the detector's size floor, the
-     * floor is probably clipping faces that were never reported at all - which
-     * is invisible from inside the pipeline.
+     * If the smallest sits right on the size floor, the floor is probably
+     * clipping faces that were never reported at all.
      */
     fun smallestKeptRatios(count: Int = 3): List<Float> =
         sizeRatios.sorted().take(count)

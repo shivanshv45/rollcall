@@ -15,8 +15,8 @@ data class FaceSample(
 ) {
     val quality: Float get() = FaceQuality.score(this)
 
-    // Data class equality on a FloatArray compares references, which is wrong and
-    // would silently break any set or map keyed on samples.
+    // Data class equality compares FloatArray by reference, which would quietly
+    // break any set or map keyed on samples.
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FaceSample) return false
@@ -38,8 +38,8 @@ data class BoundingBox(val left: Int, val top: Int, val width: Int, val height: 
 /**
  * A run of the same face across consecutive frames, reduced to one embedding.
  *
- * Averaging suppresses per-frame noise and cuts the clustering input by roughly
- * 10x; weighting by quality lets the clean frames dominate the result.
+ * Averaging suppresses per-frame noise and cuts the clustering input by ~10x.
+ * Weighting by quality lets the clean frames dominate.
  */
 data class Tracklet(
     val id: Int,
@@ -58,9 +58,8 @@ data class Tracklet(
             for (i in 0 until dim) sum[i] += e[i] * q
             weight += q
         }
-        // All-zero weights are rare but possible, and dividing by them gives a
-        // zero vector that normalises to NaN, which propagates into every
-        // distance. An unweighted mean still locates the face.
+        // Dividing by a zero weight gives a vector that normalises to NaN, and
+        // that poisons every distance. An unweighted mean still locates the face.
         if (weight <= 0f) {
             java.util.Arrays.fill(sum, 0f)
             for (s in samples) {
@@ -91,7 +90,7 @@ data class Person(
 ) {
     val appearanceCount get() = appearances.size
     val screenTimeMs get() = appearances.sumOf { it.durationMs }
-    /** A, B, C... shown alongside the colour so identity isn't colour-only. */
+    /** A, B, C... so identity is not carried by colour alone. */
     val label: String get() = ('A' + id).toString()
 }
 

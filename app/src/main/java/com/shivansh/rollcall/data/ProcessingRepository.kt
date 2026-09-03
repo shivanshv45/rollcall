@@ -34,9 +34,8 @@ import javax.inject.Inject
 /**
  * Runs the whole pipeline and reports progress as it goes.
  *
- * Emits a stream of states rather than returning a result at the end, so the UI
- * can show which stage is running and what has been found so far. Everything
- * happens on Dispatchers.Default; cancelling the collector cancels the work.
+ * Emits states rather than returning a result at the end, so the UI can show
+ * what has been found so far. Cancelling the collector cancels the work.
  */
 class ProcessingRepository @Inject constructor(
     private val frames: FrameExtractor,
@@ -55,8 +54,8 @@ class ProcessingRepository @Inject constructor(
 
         val expectedFrames = (duration / config.frameIntervalMs).toInt().coerceAtLeast(1)
 
-        // Embeddings only. A crop per detected face reaches ~67MB over a 30s clip
-        // and never gets read again after the previews are filled.
+        // Embeddings only. Keeping a crop per face reaches ~67MB over a 30s clip
+        // and nothing reads them once the previews are filled.
         val detected = mutableListOf<DetectedFace>()
         val cuts = mutableListOf<Long>()
         val previews = mutableListOf<Bitmap>()
@@ -73,9 +72,9 @@ class ProcessingRepository @Inject constructor(
             }
             previousThumb = thumb
 
-            // Every face in the frame, not just the first: two people on screen
-            // together is the case the appearance counts turn on, and their
-            // co-occurrence is also a hard constraint for the clusterer.
+            // Every face in the frame, not just the first. Two people on screen
+            // together is where the appearance counts are decided, and it also
+            // tells the clusterer they cannot be the same person.
             val faces = detector.detect(frame.bitmap, frame.timestampMs, tally)
             for (face in faces) {
                 val embedding = embedder.embed(frame.bitmap, face)
@@ -86,8 +85,8 @@ class ProcessingRepository @Inject constructor(
                 detected += face.copy(sample = face.sample.copy(embedding = embedding))
             }
 
-            // Previews are decoration for the wait. Allocate only the few that
-            // are actually shown, at thumbnail size, and never after that.
+            // Previews are decoration for the wait, so only allocate the few
+            // actually shown.
             if (previews.size < PREVIEW_LIMIT) {
                 faces.firstOrNull()?.let { previews += previewOf(frame.bitmap, it) }
             }
@@ -151,7 +150,7 @@ class ProcessingRepository @Inject constructor(
             }
             .sortedBy { it.appearances.firstOrNull()?.startMs ?: Long.MAX_VALUE }
             // Drop before numbering: the id is both the label and an index into
-            // the list, so numbering first leaves gaps once anyone is dropped.
+            // the list, so numbering first leaves gaps.
             .filter { it.appearances.isNotEmpty() }
             .mapIndexed { index, person -> person.copy(id = index) }
 
@@ -190,10 +189,8 @@ class ProcessingRepository @Inject constructor(
     /**
      * Small square crop for the progress strip.
      *
-     * Composited into a new bitmap rather than sliced with
-     * Bitmap.createBitmap(src, ...), which returns the source when the crop
-     * covers it. The caller recycles the frame on the next line, so a slice
-     * would leave the UI holding a recycled bitmap.
+     * Composited rather than sliced: createBitmap returns the source when the
+     * crop covers it, and the frame is recycled on the next line.
      */
     private fun previewOf(frame: Bitmap, face: DetectedFace): Bitmap {
         val box = face.sample.box

@@ -3,12 +3,9 @@ package com.shivansh.rollcall.domain.clustering
 /**
  * Groups tracklets into people without being told how many there are.
  *
- * Average linkage rather than single linkage: single linkage chains, so one
- * borderline pair welds two similar-looking people into a single identity, and
- * the sample clips have exactly that hazard - two people in near-identical
- * headscarves. Average linkage needs overall similarity to merge, which resists
- * it. k-means and DBSCAN are both unusable here: k-means needs the count up
- * front, and DBSCAN would label a briefly-seen person as noise and drop them.
+ * Average linkage, because single linkage chains: one borderline pair is enough
+ * to weld two similar-looking people together. k-means needs the count up front,
+ * and DBSCAN would write off a briefly-seen person as noise.
  */
 class AgglomerativeClusterer(
     private val coreThreshold: Double,
@@ -17,9 +14,8 @@ class AgglomerativeClusterer(
 ) {
 
     /**
-     * @param cannotLink pairs that must never merge. Two faces visible in the
-     *   same frame are provably different people, which is a free hard constraint
-     *   the embeddings can't override.
+     * @param cannotLink pairs that must never merge. Two faces in one frame are
+     *   different people, whatever the embeddings say.
      * @return cluster index per input, contiguous from 0.
      */
     fun cluster(distances: Array<DoubleArray>, cannotLink: Set<Pair<Int, Int>>): IntArray {
@@ -53,10 +49,9 @@ class AgglomerativeClusterer(
     /**
      * Second pass: fold weak clusters into strong ones.
      *
-     * A fragment left over from a two-person shot embeds poorly - the face is
-     * small or side-on - so it sits well outside the strict threshold from its
-     * own identity. Left alone it would be reported as an extra person, which is
-     * a worse error than attaching it to the nearest real one.
+     * Fragments from two-person shots embed poorly and land outside the strict
+     * threshold. Reporting one as an extra person is worse than attaching it to
+     * the nearest real identity.
      */
     private fun absorbFragments(
         members: MutableMap<Int, MutableList<Int>>,
@@ -80,10 +75,9 @@ class AgglomerativeClusterer(
             val best = ranked.firstOrNull() ?: continue
             if (best.first >= assignThreshold) continue
 
-            // A near-tie means the embedding cannot separate the two, so prefer
-            // the smaller identity. These fragments come from two-person shots
-            // where both people are mid-appearance; picking on a 0.01 margin
-            // leaves one over-counted and the other short.
+            // On a near-tie the embedding can't separate them, so prefer the
+            // smaller identity. Picking on a 0.01 margin leaves one person
+            // over-counted and the other short.
             val runnerUp = ranked.getOrNull(1)
             val target = if (runnerUp != null && runnerUp.first - best.first < TIE_MARGIN) {
                 listOf(best, runnerUp).minWith(
@@ -132,10 +126,7 @@ class AgglomerativeClusterer(
     }
 
     private companion object {
-        /**
-         * Distance gap below which two candidate identities count as tied.
-         * Measured: the result is identical anywhere from 0.04 to 0.20.
-         */
+        /** Gap below which two candidates count as tied. Same result from 0.04 to 0.20. */
         const val TIE_MARGIN = 0.08
     }
 }

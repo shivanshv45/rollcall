@@ -41,8 +41,8 @@ import com.shivansh.rollcall.ui.theme.TextSecondary
 /**
  * A person's appearances laid out on the video's timeline.
  *
- * Turns "4 appearances" from a number you have to trust into something you can
- * check at a glance - and shows the spacing, which a count alone hides.
+ * Makes "4 appearances" checkable at a glance, and shows the spacing that a
+ * count on its own hides.
  */
 @Composable
 fun ScrubberStrip(
@@ -109,11 +109,10 @@ fun IdentityChip(label: String, color: Color, modifier: Modifier = Modifier) {
 }
 
 /**
- * A person's representative shot, with the identity letter kept as a badge.
+ * A person's representative shot with the identity letter as a badge.
  *
- * The roster is where the grouping gets judged, so it shows the face rather
- * than only a letter. The badge stays because the letter ties this row to the
- * same person in the collage, and it is what remains if the decode failed.
+ * The letter stays because it ties this row to the same person in the collage,
+ * and it is what shows if the decode failed.
  */
 @Composable
 fun IdentityPortrait(
