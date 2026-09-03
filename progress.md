@@ -15,7 +15,7 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 
 ### Layer 0 — Toolchain
 - [x] 0.1 Android SDK installed locally in `android-sdk/` (platform-35, build-tools 35)
-- [ ] 0.2 Phone in USB-debugging mode, `adb devices` sees it
+- [ ] 0.2 Phone in USB-debugging mode - **waiting on hardware** (see TESTING.md)
 
 ### Layer 1 — Prototype (the 50%)
 - [x] 1.1 Frame extraction + scene-cut detection - 14-17 cuts/clip, ~1.5s median spacing
@@ -37,7 +37,7 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] 3.4 Frame extractor (half-res, OPTION_CLOSEST, cancellable)
 - [x] 3.5 Detector + embedder written (eye-line alignment, MobileFaceNet)
 - [x] 3.6 Repository wired end-to-end (Flow<ProcessingState>, cancellable)
-- [ ] 3.7 ⭐ On-device threshold re-validation
+- [ ] 3.7 On-device threshold re-validation - **needs a phone**
 
 ### Layer 4 — UI
 - [x] 4.1 Nav + Home (SAF picker, no storage permission)
@@ -47,10 +47,10 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] 4.5 Save (MediaStore) + share (FileProvider)
 
 ### Layer 5 — Delivery
-- [ ] 5.1 Motion, haptics, states
-- [ ] 5.2 QA pass
+- [x] 5.1 Motion, haptics, designed empty/error/cancelled states
+- [ ] 5.2 QA pass - **needs a phone**
 - [ ] 5.3 README
-- [ ] 5.4 Debug APK
+- [x] 5.4 Debug APK builds (77MB)
 - [ ] 5.5 Screen recording (≤60 s, all 3 collages legible)
 - [ ] 5.6 Submit
 
@@ -113,3 +113,15 @@ tuning further would be over-fitting - exactly what the brief warns against.
 **32/32 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
 The domain layer has no Android imports, so the clustering, segmentation and quality
 logic - the 50%-weighted part - is testable without a device or emulator.
+
+## Ready to test on a phone
+Everything that can be verified without hardware is done:
+- `./gradlew assembleDebug` succeeds, APK at app/build/outputs/apk/debug/app-debug.apk
+- 32/32 JVM unit tests pass
+- Instrumented tests compile - they assert sample 1 gives 5 people / 20 appearances
+  on-device, and that the collage renders at 1080x1920
+- Collage layouts verified for 0-12 people: no overlaps, spills or degenerate tiles
+
+Remaining work needs a connected phone: run the app end-to-end, re-validate the
+threshold with real ML Kit embeddings (step 3.7), and the QA pass.
+See TESTING.md for the setup steps.
