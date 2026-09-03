@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import com.shivansh.rollcall.domain.model.VideoAnalysis
 import com.shivansh.rollcall.ui.components.IdentityChip
 import com.shivansh.rollcall.ui.components.PrimaryButton
 import com.shivansh.rollcall.ui.components.ScrubberStrip
+import com.shivansh.rollcall.ui.components.TextAction
 import com.shivansh.rollcall.ui.theme.IdentityColors
 import com.shivansh.rollcall.ui.theme.Ink
 import com.shivansh.rollcall.ui.theme.InkElevated
@@ -47,7 +49,7 @@ fun ResultScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
                 .padding(horizontal = Space.lg),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            contentPadding = PaddingValues(
                 top = Space.lg,
                 bottom = 120.dp,
             ),
@@ -73,7 +75,7 @@ fun ResultScreen(
         ) {
             PrimaryButton("Create collage", onCreateCollage)
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                com.shivansh.rollcall.ui.components.TextAction("Choose another video", onStartOver)
+                TextAction("Choose another video", onStartOver)
             }
         }
     }
@@ -109,9 +111,11 @@ private fun PersonRow(person: Person, durationMs: Long) {
             .padding(Space.md),
         verticalArrangement = Arrangement.spacedBy(Space.sm),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.sm),
+        ) {
             IdentityChip(person.label, color)
-            Spacer(Modifier.fillMaxWidth(0.04f))
             Column(Modifier.weight(1f)) {
                 Text(
                     "${person.appearanceCount} " +

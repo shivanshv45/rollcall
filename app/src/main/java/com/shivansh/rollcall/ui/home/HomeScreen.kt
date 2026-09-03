@@ -3,6 +3,7 @@ package com.shivansh.rollcall.ui.home
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shivansh.rollcall.ui.components.PrimaryButton
@@ -47,7 +49,7 @@ fun HomeScreen(onVideoPicked: (android.net.Uri) -> Unit) {
             Text(
                 "Roll Call",
                 style = MaterialTheme.typography.displayLarge,
-                color = androidx.compose.ui.graphics.Color.White,
+                color = Color.White,
             )
             Spacer(Modifier.height(Space.sm))
             Text(
@@ -77,7 +79,7 @@ fun HomeScreen(onVideoPicked: (android.net.Uri) -> Unit) {
                 fontSize = 13.sp,
                 color = TextSecondary,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -106,7 +108,7 @@ private fun HeroMark(modifier: Modifier = Modifier) {
                             .offsetBy(start)
                             .background(
                                 Brush.horizontalGradient(listOf(Magenta, Coral)),
-                                androidx.compose.foundation.shape.RoundedCornerShape(5.dp),
+                                RoundedCornerShape(5.dp),
                             )
                             .alpha(1f - index * 0.18f),
                     )
