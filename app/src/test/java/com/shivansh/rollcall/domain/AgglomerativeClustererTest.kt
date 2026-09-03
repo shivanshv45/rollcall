@@ -175,4 +175,67 @@ class AgglomerativeClustererTest {
 
         assertNotEquals(labels[0], labels[strayIndex])
     }
+
+    /** Four unit vectors on axis 0, plus a small spread so they are distinct. */
+    private fun strongPerson(dim: Int = 4): List<FloatArray> =
+        (0 until 4).map { i ->
+            FloatArray(dim) { axis -> if (axis == 0) 1f else 0f }
+                .also { it[1] += i * 0.01f }
+                .l2Normalized()
+        }
+
+    /**
+     * Four shots of one person spread around a cone about axis 1. At 39 degrees
+     * each adjacent pair is ~0.40 apart, just over the strict threshold, and
+     * opposite pairs ~0.79, just under the relaxed one. No three of them are
+     * close enough to form a core.
+     */
+    private fun fragmentedPerson(): List<FloatArray> {
+        val theta = Math.toRadians(39.0)
+        return listOf(0.0, 90.0, 180.0, 270.0).map { phi ->
+            val p = Math.toRadians(phi)
+            floatArrayOf(
+                0f,
+                Math.cos(theta).toFloat(),
+                (Math.sin(theta) * Math.cos(p)).toFloat(),
+                (Math.sin(theta) * Math.sin(p)).toFloat(),
+            ).l2Normalized()
+        }
+    }
+
+    private fun unit(axis: Int, dim: Int = 4) =
+        FloatArray(dim) { if (it == axis) 1f else 0f }.l2Normalized()
+
+    /**
+     * A person seen only in fragments has no strong cluster to be folded into,
+     * and used to be reported once per fragment, each with one appearance.
+     */
+    @Test
+    fun `fragments of one person merge even with no strong core`() {
+        val vectors = strongPerson() + fragmentedPerson()
+
+        val labels = clusterer().cluster(CosineDistance.matrix(vectors), emptySet())
+        assertEquals(2, labels.toSet().size)
+        assertEquals("all four fragments in one identity", 1, labels.drop(4).toSet().size)
+    }
+
+    @Test
+    fun `leftovers of two different people are not merged together`() {
+        val vectors = strongPerson() + unit(1) + unit(2)
+
+        val labels = clusterer().cluster(CosineDistance.matrix(vectors), emptySet())
+        assertNotEquals(labels[4], labels[5])
+    }
+
+    @Test
+    fun `leftovers that shared a frame stay apart`() {
+        val t = Math.toRadians(20.0)
+        val a = unit(1)
+        val b = floatArrayOf(0f, Math.cos(t).toFloat(), Math.sin(t).toFloat(), 0f).l2Normalized()
+        val vectors = strongPerson() + a + b
+
+        // Alike enough to merge on sight; the same-frame block must still win.
+        val labels = clusterer().cluster(CosineDistance.matrix(vectors), setOf(4 to 5))
+        assertNotEquals(labels[4], labels[5])
+    }
 }

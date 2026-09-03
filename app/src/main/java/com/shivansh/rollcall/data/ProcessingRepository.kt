@@ -22,6 +22,7 @@ import com.shivansh.rollcall.domain.model.PersonEvidence
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import com.shivansh.rollcall.domain.model.ProcessingState
+import com.shivansh.rollcall.domain.model.RunReport
 import com.shivansh.rollcall.domain.model.Stage
 import com.shivansh.rollcall.domain.model.VideoAnalysis
 import com.shivansh.rollcall.domain.segmentation.AppearanceSegmenter
@@ -120,14 +121,12 @@ class ProcessingRepository @Inject constructor(
         val builder = TrackletBuilder(frameIntervalMs = config.frameIntervalMs)
         val tracklets = builder.build(detected.map { it.sample }, cuts)
         trace("built ${tracklets.size} tracklets")
+        val cannotLink = builder.cannotLink(tracklets)
         val labels = AgglomerativeClusterer(
             coreThreshold = config.coreThreshold,
             assignThreshold = config.assignThreshold,
             minCoreSize = config.minCoreTracks,
-        ).cluster(
-            CosineDistance.matrix(tracklets.map { it.embedding }),
-            builder.cannotLink(tracklets),
-        )
+        ).cluster(CosineDistance.matrix(tracklets.map { it.embedding }), cannotLink)
         trace("clustered into ${labels.toSet().size} identities")
 
         emit(ProcessingState.Working(Stage.ChoosingShots, CHOOSING_SHARE, scanned, detected.size, previews.toList()))
@@ -166,10 +165,19 @@ class ProcessingRepository @Inject constructor(
             return@flow
         }
 
-        trace("${people.size} people, ${people.sumOf { it.appearanceCount }} appearances " +
-            "in ${System.currentTimeMillis() - started}ms")
+        val elapsed = System.currentTimeMillis() - started
+        trace("${people.size} people, ${people.sumOf { it.appearanceCount }} appearances in ${elapsed}ms")
 
-        emit(ProcessingState.Done(VideoAnalysis(people, duration)))
+        val report = RunReport.build(
+            recall = tally.summary(),
+            tracklets = tracklets,
+            labels = labels,
+            people = people,
+            cannotLink = cannotLink,
+            durationMs = duration,
+            elapsedMs = elapsed,
+        )
+        emit(ProcessingState.Done(VideoAnalysis(people, duration), report))
     }.catch { error ->
         // Cancellation is the user pressing Cancel, not a failure.
         if (error is CancellationException) throw error

@@ -39,11 +39,7 @@ class MlKitFaceDetector @Inject constructor(
         timestampMs: Long,
         tally: RecallTally? = null,
     ): List<DetectedFace> {
-        val faces = suspendCancellableCoroutine { cont ->
-            detector.process(InputImage.fromBitmap(bitmap, 0))
-                .addOnSuccessListener { cont.resume(it) }
-                .addOnFailureListener { cont.resumeWithException(it) }
-        }
+        val faces = faces(bitmap)
         faces.forEach { tally?.countReturned(it.boundingBox.width().toFloat() / bitmap.width) }
 
         // One box per face. A duplicate or nested detection would share this
@@ -66,6 +62,19 @@ class MlKitFaceDetector @Inject constructor(
             )
         }
     }
+
+    /** Every face box in the frame, one per face, with no quality filtering. */
+    suspend fun boxesIn(bitmap: Bitmap): List<BoundingBox> {
+        val raw = faces(bitmap).map { it.boundingBox.toBox() }
+        return DetectionFilter.suppressOverlaps(raw).map { raw[it] }
+    }
+
+    private suspend fun faces(bitmap: Bitmap): List<Face> =
+        suspendCancellableCoroutine { cont ->
+            detector.process(InputImage.fromBitmap(bitmap, 0))
+                .addOnSuccessListener { cont.resume(it) }
+                .addOnFailureListener { cont.resumeWithException(it) }
+        }
 
     private fun android.graphics.Rect.toBox() = BoundingBox(left, top, width(), height())
 

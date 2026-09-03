@@ -3,7 +3,6 @@ package com.shivansh.rollcall.data.video
 import android.graphics.Bitmap
 import android.net.Uri
 import com.shivansh.rollcall.domain.model.Person
-import com.shivansh.rollcall.domain.model.PipelineConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -17,8 +16,7 @@ import kotlin.coroutines.coroutineContext
  * where the grouping gets judged, so it needs faces, not just letters.
  */
 class PortraitLoader @Inject constructor(
-    private val frames: FrameExtractor,
-    private val config: PipelineConfig,
+    private val picker: PortraitPicker,
 ) {
 
     suspend fun load(uri: Uri, people: List<Person>): Map<Int, Bitmap> =
@@ -35,24 +33,8 @@ class PortraitLoader @Inject constructor(
             out
         }
 
-    private fun portrait(uri: Uri, person: Person): Bitmap? {
-        val sample = person.representative
-        val frame = frames.frameAt(uri, sample.timestampMs, DECODE_PX, DECODE_PX) ?: return null
-
-        val box = sample.box
-        val cropped = PortraitCropper.crop(
-            frame = frame,
-            boxCenterX = box.centerX,
-            boxCenterY = box.centerY,
-            boxWidth = box.width.toFloat(),
-            boxHeight = box.height.toFloat(),
-            faceScale = frame.width.toFloat() / config.workWidth,
-            cropScale = config.portraitCropScale,
-            aspect = 1f,
-            neighbours = sample.neighbourBoxes(),
-        )
-        frame.recycle()
-
+    private suspend fun portrait(uri: Uri, person: Person): Bitmap? {
+        val cropped = picker.pick(uri, person, DECODE_PX, DECODE_PX, 1f) ?: return null
         if (cropped.width <= THUMBNAIL_PX) return cropped
         // Down to display size: five of these cost well under a megabyte.
         return Bitmap.createScaledBitmap(cropped, THUMBNAIL_PX, THUMBNAIL_PX, true)
