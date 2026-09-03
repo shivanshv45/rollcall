@@ -1,6 +1,7 @@
 package com.shivansh.rollcall
 
 import android.graphics.Bitmap
+import com.shivansh.rollcall.data.video.NeighbourBox
 import com.shivansh.rollcall.data.video.PortraitCropper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -107,5 +108,80 @@ class PortraitCropperTest {
     fun `a square aspect gives a square thumbnail`() {
         val out = crop(frame(1200, 1200), 600f, 600f, aspect = 1f)
         assertEquals(out.width, out.height)
+    }
+
+    /**
+     * A wide crop in a two-person shot used to swallow the other person, so the
+     * tile showed two faces and neither read as a portrait of one.
+     */
+    @Test
+    fun `crop stops short of a neighbouring face`() {
+        val frame = frame(1000, 1000)
+        // Subject at x=300, neighbour centred at x=600 with a 100px half-width,
+        // so the neighbour's near edge is at 500.
+        val out = PortraitCropper.crop(
+            frame = frame,
+            boxCenterX = 300f,
+            boxCenterY = 500f,
+            boxWidth = 120f,
+            boxHeight = 120f,
+            faceScale = 1f,
+            cropScale = 3.2f,
+            aspect = 1f,
+            neighbours = listOf(NeighbourBox(centerX = 600f, halfWidth = 100f)),
+        )
+
+        // Without the limit this would be 384px wide and reach past x=492.
+        assertTrue("crop was ${out.width}px, expected under 384", out.width < 384)
+    }
+
+    @Test
+    fun `a neighbour on the left is avoided too`() {
+        val out = PortraitCropper.crop(
+            frame = frame(1000, 1000),
+            boxCenterX = 700f,
+            boxCenterY = 500f,
+            boxWidth = 120f,
+            boxHeight = 120f,
+            faceScale = 1f,
+            cropScale = 3.2f,
+            aspect = 1f,
+            neighbours = listOf(NeighbourBox(centerX = 400f, halfWidth = 100f)),
+        )
+        assertTrue("crop was ${out.width}px", out.width < 384)
+    }
+
+    @Test
+    fun `no neighbours means the full wide crop`() {
+        val wide = crop(frame(1000, 1000), 500f, 500f, boxW = 120f, boxH = 120f)
+        val limited = PortraitCropper.crop(
+            frame = frame(1000, 1000),
+            boxCenterX = 500f,
+            boxCenterY = 500f,
+            boxWidth = 120f,
+            boxHeight = 120f,
+            faceScale = 1f,
+            cropScale = 2.6f,
+            aspect = 1.25f,
+            neighbours = emptyList(),
+        )
+        assertEquals(wide.width, limited.width)
+    }
+
+    /** Even a close neighbour must not squeeze the crop down to a mugshot. */
+    @Test
+    fun `a very close neighbour still leaves more than the face`() {
+        val out = PortraitCropper.crop(
+            frame = frame(1000, 1000),
+            boxCenterX = 500f,
+            boxCenterY = 500f,
+            boxWidth = 100f,
+            boxHeight = 100f,
+            faceScale = 1f,
+            cropScale = 3.2f,
+            aspect = 1f,
+            neighbours = listOf(NeighbourBox(centerX = 560f, halfWidth = 20f)),
+        )
+        assertTrue("crop was ${out.width}px, expected wider than the face", out.width > 100)
     }
 }

@@ -12,6 +12,8 @@ data class FaceSample(
     val isClipped: Boolean,
     val trackId: Int,
     val embedding: FloatArray? = null,
+    /** Other faces in this frame, so a crop can avoid reaching into them. */
+    val coFaces: List<BoundingBox> = emptyList(),
 ) {
     val quality: Float get() = FaceQuality.score(this)
 

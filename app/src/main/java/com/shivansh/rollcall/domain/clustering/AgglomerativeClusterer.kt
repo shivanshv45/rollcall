@@ -73,7 +73,14 @@ class AgglomerativeClusterer(
             }.sortedBy { it.first }
 
             val best = ranked.firstOrNull() ?: continue
-            if (best.first >= assignThreshold) continue
+
+            // A fragment past the threshold used to be left alone, which reported
+            // it as a whole extra person. A one-tracklet leftover is far more
+            // likely to be a hard angle on someone already found than a person
+            // who only ever appears once, so single tracklets get a wider gate.
+            val gate = if (group.size == 1) assignThreshold * LONE_FRAGMENT_SLACK
+            else assignThreshold
+            if (best.first >= gate) continue
 
             // On a near-tie the embedding can't separate them, so prefer the
             // smaller identity. Picking on a 0.01 margin leaves one person
@@ -128,5 +135,13 @@ class AgglomerativeClusterer(
     private companion object {
         /** Gap below which two candidates count as tied. Same result from 0.04 to 0.20. */
         const val TIE_MARGIN = 0.08
+
+        /**
+         * How much further a single leftover tracklet may reach for a home.
+         *
+         * Reporting a duplicate of someone already on the list is a worse error
+         * than attaching a stray tracklet to the wrong one of two candidates.
+         */
+        const val LONE_FRAGMENT_SLACK = 1.25
     }
 }

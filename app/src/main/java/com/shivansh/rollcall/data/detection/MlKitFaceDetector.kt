@@ -44,7 +44,19 @@ class MlKitFaceDetector @Inject constructor(
                 .addOnFailureListener { cont.resumeWithException(it) }
         }
         faces.forEach { tally?.countReturned(it.boundingBox.width().toFloat() / bitmap.width) }
-        return faces.mapNotNull { it.toDetected(bitmap, timestampMs, tally) }
+        val detected = faces.mapNotNull { it.toDetected(bitmap, timestampMs, tally) }
+
+        // Record who else was on screen. Two faces in one frame are different
+        // people, and a portrait crop has to stop short of the neighbour.
+        if (detected.size < 2) return detected
+        val boxes = detected.map { it.sample.box }
+        return detected.mapIndexed { i, face ->
+            face.copy(
+                sample = face.sample.copy(
+                    coFaces = boxes.filterIndexed { j, _ -> j != i },
+                )
+            )
+        }
     }
 
     private fun Face.toDetected(

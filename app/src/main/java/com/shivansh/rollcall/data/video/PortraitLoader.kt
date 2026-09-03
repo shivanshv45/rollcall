@@ -49,6 +49,7 @@ class PortraitLoader @Inject constructor(
             faceScale = frame.width.toFloat() / config.workWidth,
             cropScale = config.portraitCropScale,
             aspect = 1f,
+            neighbours = sample.neighbourBoxes(),
         )
         frame.recycle()
 

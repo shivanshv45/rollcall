@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import com.shivansh.rollcall.data.video.FrameExtractor
 import com.shivansh.rollcall.data.video.PortraitCropper
+import com.shivansh.rollcall.data.video.neighbourBoxes
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import com.shivansh.rollcall.domain.model.VideoAnalysis
@@ -146,6 +147,7 @@ class CollageRenderer @Inject constructor(
             faceScale = frame.width.toFloat() / config.workWidth,
             cropScale = config.portraitCropScale,
             aspect = TILE_ASPECT,
+            neighbours = sample.neighbourBoxes(),
         )
         frame.recycle()
         return out
