@@ -28,6 +28,23 @@ vids/
 # mobilefacenet.tflite lives in app/src/main/assets and IS tracked).
 tools/prototype/models/
 
+# Working notes. These are how the project was planned and debugged, not part
+# of it - the spec, the step plan, the running progress log, the bug write-up,
+# the design system and the local phone-testing steps. Kept on disk because
+# they are still the reference while building; not pushed because a reader
+# wants the README and the code.
+prd.md
+plan.md
+progress.md
+failures.md
+design_notes.md
+TESTING.md
+CONTRIBUTING.md
+
+# Design references, including iykyk's own landing page. Someone else's
+# artwork, gathered for inspiration and not ours to redistribute.
+design_insp/
+
 # Python
 __pycache__/
 *.pyc

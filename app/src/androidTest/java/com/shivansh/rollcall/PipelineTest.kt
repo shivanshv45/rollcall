@@ -47,7 +47,7 @@ class PipelineTest {
 
     private fun analyse(n: Int) = runBlocking {
         val uri = sample(n)
-        assumeTrue("sample $n not on device - see TESTING.md", uri != null)
+        assumeTrue("sample $n not in Movies/ on the device", uri != null)
         val state = repository().analyse(uri!!).last()
         assertTrue("pipeline failed: $state", state is ProcessingState.Done)
         (state as ProcessingState.Done).result

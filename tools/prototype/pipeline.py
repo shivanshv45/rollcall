@@ -2,7 +2,7 @@
 
 Not shipped. This exists so threshold tuning takes seconds instead of a
 Gradle build + install + logcat cycle. Once the numbers here are right they
-get ported to Kotlin as PipelineConfig. See prd.md 9.5.
+get ported to Kotlin as PipelineConfig.
 """
 from __future__ import annotations
 
