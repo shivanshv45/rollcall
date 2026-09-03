@@ -16,6 +16,8 @@ class RecallTally {
         private set
     var droppedForNoEmbedding = 0
         private set
+    var duplicateBoxes = 0
+        private set
 
     /** Size ratios of faces the detector returned, smallest first. */
     private val sizeRatios = mutableListOf<Float>()
@@ -37,9 +39,13 @@ class RecallTally {
         droppedForNoEmbedding++
     }
 
+    fun countDuplicates(count: Int) {
+        duplicateBoxes += count
+    }
+
     val kept: Int
-        get() = returnedByDetector - droppedForBlur - droppedForDegenerateBox -
-            droppedForNoEmbedding
+        get() = returnedByDetector - duplicateBoxes - droppedForBlur -
+            droppedForDegenerateBox - droppedForNoEmbedding
 
     /**
      * The smallest faces that survived, as a fraction of frame width.
@@ -52,6 +58,7 @@ class RecallTally {
 
     fun summary(): String = buildString {
         append("faces: detector returned $returnedByDetector, kept $kept")
+        if (duplicateBoxes > 0) append(", duplicate boxes $duplicateBoxes")
         if (droppedForBlur > 0) append(", blur dropped $droppedForBlur")
         if (droppedForDegenerateBox > 0) append(", bad box dropped $droppedForDegenerateBox")
         if (droppedForNoEmbedding > 0) append(", no embedding dropped $droppedForNoEmbedding")

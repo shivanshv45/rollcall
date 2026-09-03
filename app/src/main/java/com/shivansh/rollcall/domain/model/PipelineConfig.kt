@@ -21,10 +21,10 @@ data class PipelineConfig(
      * Smallest face ML Kit will report, as a fraction of frame width.
      *
      * A recall floor, not a quality one: nothing downstream can recover a face
-     * the detector never returned. Kept low because two people sharing a frame
-     * each take up much less width than a single speaker.
+     * the detector never returned. Low enough for two people sharing a frame,
+     * but not so low that a 25px smudge gets an embedding.
      */
-    val minFaceRatio: Float = 0.05f,
+    val minFaceRatio: Float = 0.07f,
 
     /** A box within this many pixels of the edge counts as clipped. */
     val edgeMarginPx: Int = 4,

@@ -16,8 +16,9 @@ import com.shivansh.rollcall.data.video.FrameExtractor
 import com.shivansh.rollcall.domain.clustering.AgglomerativeClusterer
 import com.shivansh.rollcall.domain.clustering.CosineDistance
 import com.shivansh.rollcall.domain.clustering.TrackletBuilder
-import com.shivansh.rollcall.domain.model.FaceSample
+import com.shivansh.rollcall.domain.model.FaceQuality
 import com.shivansh.rollcall.domain.model.Failure
+import com.shivansh.rollcall.domain.model.PersonEvidence
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import com.shivansh.rollcall.domain.model.ProcessingState
@@ -135,12 +136,18 @@ class ProcessingRepository @Inject constructor(
             maxGapMs = (config.maxGapSeconds * 1000).toLong(),
             frameIntervalMs = config.frameIntervalMs,
         )
-        val people = tracklets.withIndex()
+        val groups = tracklets.withIndex()
             .groupBy({ labels[it.index] }, { it.value })
-            .entries
-            .map { (_, group) ->
+            .values
+        val (real, junk) = groups.partition { PersonEvidence.isEnough(it, config.minCoreTracks) }
+        if (junk.isNotEmpty()) {
+            trace("dropped ${junk.size} leftovers with too few samples to be a person")
+        }
+
+        val people = real
+            .map { group ->
                 val times = group.flatMap { t -> t.samples.map { it.timestampMs } }
-                val best = group.map { it.best }.maxBy { representativeScore(it) }
+                val best = group.map { it.best }.maxBy { FaceQuality.portraitScore(it) }
                 Person(
                     id = 0,
                     appearances = segmenter.segment(times, cuts),
@@ -181,21 +188,6 @@ class ProcessingRepository @Inject constructor(
         )
     }.flowOn(Dispatchers.Default)
 
-    /**
-     * How good a shot is as the person's one portrait.
-     *
-     * Stricter than the quality score used for weighting. A face that runs off
-     * the frame edge or is caught mid-turn still embeds fine, but it makes a
-     * poor picture, and a soft one makes a worse one.
-     */
-    private fun representativeScore(sample: FaceSample): Float {
-        var score = sample.quality
-        if (sample.isClipped) score -= CLIPPED_PENALTY
-        if (sample.frontality < PROFILE_FLOOR) score -= PROFILE_PENALTY
-        if (sample.sharpness < SOFT_FLOOR) score -= SOFT_PENALTY
-        return score
-    }
-
     private fun trace(message: String) {
         Log.i(TAG, message)
         CrashReporter.note(message)
@@ -232,15 +224,7 @@ class ProcessingRepository @Inject constructor(
 
         /** Displayed at 56dp, so anything larger is wasted memory. */
         const val PREVIEW_PX = 160
-        const val CLIPPED_PENALTY = 0.25f
 
-        /** Below this the face is turned too far to make a good portrait. */
-        const val PROFILE_FLOOR = 0.55f
-        const val PROFILE_PENALTY = 0.20f
-
-        /** Passes the blur gate but is still too soft to feature. */
-        const val SOFT_FLOOR = 0.25f
-        const val SOFT_PENALTY = 0.20f
 
         /** Detection is most of the work; the rest of the bar covers grouping. */
         const val DETECT_SHARE = 0.85f

@@ -75,8 +75,8 @@ data class Tracklet(
         sum.l2Normalized()
     }
 
-    /** Best shot in this tracklet, penalising faces that run off the frame edge. */
-    val best: FaceSample get() = samples.maxBy { it.quality - if (it.isClipped) 0.25f else 0f }
+    /** Best shot in this tracklet for a portrait. */
+    val best: FaceSample get() = samples.maxBy { FaceQuality.portraitScore(it) }
 }
 
 /** One continuous stretch where a person is visible. */
