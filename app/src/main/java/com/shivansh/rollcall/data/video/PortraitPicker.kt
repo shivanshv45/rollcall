@@ -5,6 +5,7 @@ import android.net.Uri
 import com.shivansh.rollcall.data.detection.MlKitFaceDetector
 import com.shivansh.rollcall.domain.model.BoundingBox
 import com.shivansh.rollcall.domain.model.FaceQuality
+import com.shivansh.rollcall.domain.model.FaceSample
 import com.shivansh.rollcall.domain.model.Person
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import javax.inject.Inject
@@ -32,14 +33,19 @@ class PortraitPicker @Inject constructor(
         maxHeight: Int,
         aspect: Float,
     ): Bitmap? {
-        // Solo frames first, best of each group first. Anyone ever seen alone
-        // should be shown alone, even if their best shared frame is sharper, so
-        // the split is a hard partition rather than a scoring penalty. Someone
-        // never seen alone falls through to the shared list and gets cropped.
+        // Anyone seen alone should be shown alone, so solo frames lead even when
+        // a shared frame is sharper. That only holds while a solo frame is worth
+        // looking at: if every one is a smear, a clean shared frame cropped to
+        // this person makes the better tile, so the two lists compete on score.
         val samples = person.tracklets.flatMap { it.samples }
         val (solo, shared) = samples.partition { it.coFaces.isEmpty() }
-        val candidates = solo.sortedByDescending { FaceQuality.portraitScore(it) }.take(CANDIDATES) +
-            shared.sortedByDescending { FaceQuality.portraitScore(it) }.take(CANDIDATES)
+        val byScore = compareByDescending<FaceSample> { FaceQuality.portraitScore(it) }
+
+        val candidates = if (solo.any { FaceQuality.isUsablePortrait(it) }) {
+            solo.sortedWith(byScore).take(CANDIDATES) + shared.sortedWith(byScore).take(CANDIDATES)
+        } else {
+            samples.sortedWith(byScore).take(CANDIDATES * 2)
+        }
 
         var fallback: Bitmap? = null
         for (sample in candidates) {

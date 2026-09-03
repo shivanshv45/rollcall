@@ -47,6 +47,21 @@ object FaceQuality {
     const val SOFT_PENALTY = 0.20f
 
     /**
+     * Good enough to be worth showing, ignoring who else is in the frame.
+     *
+     * Below this the shot is a smear or a back of a head, and a clean frame the
+     * person shares with someone else makes a better tile than a bad one they
+     * have to themselves.
+     */
+    fun isUsablePortrait(s: FaceSample): Boolean =
+        s.sharpness >= SOFT_FLOOR &&
+            s.frontality >= PROFILE_FLOOR &&
+            score(s) >= USABLE_SCORE
+
+    /** Floor on the plain quality score for a shot to lead on being solo. */
+    const val USABLE_SCORE = 0.45f
+
+    /**
      * Frontality from head pose. Yaw and pitch multiply, so turning away in
      * either axis costs; roll is ignored because alignment corrects it anyway.
      */

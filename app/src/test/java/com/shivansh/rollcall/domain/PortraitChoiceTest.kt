@@ -101,8 +101,12 @@ class PortraitChoiceTest {
      */
     private fun candidateOrder(samples: List<FaceSample>): List<FaceSample> {
         val (solo, shared) = samples.partition { it.coFaces.isEmpty() }
-        return solo.sortedByDescending { FaceQuality.portraitScore(it) } +
-            shared.sortedByDescending { FaceQuality.portraitScore(it) }
+        val byScore = compareByDescending<FaceSample> { FaceQuality.portraitScore(it) }
+        return if (solo.any { FaceQuality.isUsablePortrait(it) }) {
+            solo.sortedWith(byScore) + shared.sortedWith(byScore)
+        } else {
+            samples.sortedWith(byScore)
+        }
     }
 
     @Test
@@ -142,5 +146,44 @@ class PortraitChoiceTest {
         val dull = sample(t = 0, sharpness = 0.3f)
         val best = sample(t = 200, sharpness = 0.95f)
         assertEquals(best, candidateOrder(listOf(dull, best)).first())
+    }
+
+    /**
+     * The solo preference is worth having only while the solo frame is worth
+     * looking at. A smear the person has to themselves makes a worse tile than
+     * a clean frame cropped out of a two-shot.
+     */
+    @Test
+    fun `a clean shared frame beats an unusable solo one`() {
+        val smear = sample(t = 0, sharpness = 0.05f, frontality = 0.2f)
+        val cleanShared = sample(t = 200, sharpness = 0.95f, coFaces = neighbour)
+
+        assertEquals(cleanShared, candidateOrder(listOf(smear, cleanShared)).first())
+    }
+
+    @Test
+    fun `a merely soft solo frame still wins, being usable`() {
+        val soft = sample(t = 0, sharpness = 0.55f)
+        val sharpShared = sample(t = 200, sharpness = 1f, coFaces = neighbour)
+
+        assertEquals(soft, candidateOrder(listOf(soft, sharpShared)).first())
+    }
+
+    @Test
+    fun `an unusable solo frame is still offered as a fallback`() {
+        val smear = sample(t = 0, sharpness = 0.05f, frontality = 0.2f)
+        val cleanShared = sample(t = 200, sharpness = 0.95f, coFaces = neighbour)
+
+        assertEquals(2, candidateOrder(listOf(smear, cleanShared)).size)
+    }
+
+    @Test
+    fun `a back-of-the-head solo frame does not count as usable`() {
+        assertFalse(FaceQuality.isUsablePortrait(sample(frontality = 0.1f)))
+    }
+
+    @Test
+    fun `an ordinary solo frame counts as usable`() {
+        assertTrue(FaceQuality.isUsablePortrait(sample(sharpness = 0.6f, frontality = 0.8f)))
     }
 }
