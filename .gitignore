@@ -1,11 +1,33 @@
-android-sdk/
-tools/prototype/cmdline-tools.zip
-tools/prototype/models/
-__pycache__/
-*.pyc
+# Build output
 .gradle/
 build/
+app/build/
+.kotlin/
 local.properties
+
+# IDE
 .idea/
 *.iml
-.kotlin/
+.DS_Store
+
+# Local Android SDK and the installer it came from
+android-sdk/
+tools/prototype/cmdline-tools.zip
+
+# Built APKs. Attach the debug build to the submission instead of committing it -
+# it is 74MB and would be carried in every clone forever.
+*.apk
+*.aab
+
+# The supplied test clips. They are iykyk's assignment assets, not ours to
+# redistribute, and nothing in the build depends on them. Drop them in vids/
+# locally to run the prototype or the on-device tests.
+vids/
+
+# Model files the prototype downloads on demand (the app's own copy of
+# mobilefacenet.tflite lives in app/src/main/assets and IS tracked).
+tools/prototype/models/
+
+# Python
+__pycache__/
+*.pyc
