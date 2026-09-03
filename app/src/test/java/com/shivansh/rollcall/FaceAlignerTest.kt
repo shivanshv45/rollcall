@@ -8,7 +8,6 @@ import com.shivansh.rollcall.data.embedding.FaceAligner.SIZE
 import com.shivansh.rollcall.domain.model.BoundingBox
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -108,8 +107,7 @@ class FaceAlignerTest {
         val frame = Bitmap.createBitmap(540, 960, Bitmap.Config.ARGB_8888)
         val out = FaceAligner.align(frame, BoundingBox(200, 300, 120, 120), 230f to 350f, 290f to 350f)
 
-        assertNotNull(out)
-        assertEquals(SIZE, out!!.width)
+        assertEquals(SIZE, out.width)
         assertEquals(SIZE, out.height)
         assertFalse(out === frame)
         frame.recycle()
@@ -117,11 +115,24 @@ class FaceAlignerTest {
     }
 
     @Test
-    fun `missing eyes fall back to the box without failing`() {
+    fun `missing eyes fall back to the box rather than dropping the face`() {
         val frame = Bitmap.createBitmap(540, 960, Bitmap.Config.ARGB_8888)
         val out = FaceAligner.align(frame, BoundingBox(0, 0, 80, 80), null, null)
 
-        assertNotNull(out)
-        assertEquals(SIZE, out!!.width)
+        assertEquals(SIZE, out.width)
+    }
+
+    /**
+     * A profile turned far enough that the pupils nearly coincide used to be
+     * dropped outright, which costs a whole appearance for a face the detector
+     * found and boxed correctly.
+     */
+    @Test
+    fun `an unalignable profile still yields a crop`() {
+        val frame = Bitmap.createBitmap(540, 960, Bitmap.Config.ARGB_8888)
+        val out = FaceAligner.align(frame, BoundingBox(100, 100, 90, 90), 140f to 150f, 140.5f to 150f)
+
+        assertEquals(SIZE, out.width)
+        assertFalse(out.isRecycled)
     }
 }

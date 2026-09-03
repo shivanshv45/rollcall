@@ -41,23 +41,28 @@ object FaceAligner {
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 
     /**
-     * @return a fresh SIZE x SIZE crop, or null when the eyes are too close to
-     *   align from. [frame] is untouched and stays the caller's to recycle.
+     * Always returns a crop. A face that cannot be landmark-aligned - no eyes
+     * reported, or a profile turned far enough that the pupils nearly coincide -
+     * still embeds usefully from its box, and dropping it instead costs a whole
+     * appearance. The quality score already ranks these below aligned faces.
+     *
+     * @return a fresh SIZE x SIZE crop. [frame] is untouched and stays the
+     *   caller's to recycle.
      */
     fun align(
         frame: Bitmap,
         box: BoundingBox,
         leftEye: Pair<Float, Float>?,
         rightEye: Pair<Float, Float>?,
-    ): Bitmap? {
+    ): Bitmap {
         val out = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
 
-        if (leftEye != null && rightEye != null) {
-            val matrix = matrixFor(leftEye, rightEye) ?: run { out.recycle(); return null }
+        val matrix = if (leftEye != null && rightEye != null) matrixFor(leftEye, rightEye) else null
+        if (matrix != null) {
             canvas.drawBitmap(frame, matrix, paint)
         } else {
-            // No eyes to align to, so take the box with a generous margin. Drawn
+            // Nothing to align to, so take the box with a generous margin. Drawn
             // straight from the source rect: an intermediate createBitmap crop
             // can alias the frame.
             val margin = (box.width * FALLBACK_MARGIN).toInt()

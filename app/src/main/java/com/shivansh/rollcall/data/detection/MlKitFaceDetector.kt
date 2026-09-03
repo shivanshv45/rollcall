@@ -35,26 +35,41 @@ class MlKitFaceDetector @Inject constructor(
             .build()
     )
 
-    suspend fun detect(bitmap: Bitmap, timestampMs: Long): List<DetectedFace> {
+    suspend fun detect(
+        bitmap: Bitmap,
+        timestampMs: Long,
+        tally: RecallTally? = null,
+    ): List<DetectedFace> {
         val faces = suspendCancellableCoroutine { cont ->
             detector.process(InputImage.fromBitmap(bitmap, 0))
                 .addOnSuccessListener { cont.resume(it) }
                 .addOnFailureListener { cont.resumeWithException(it) }
         }
-        return faces.mapNotNull { it.toDetected(bitmap, timestampMs) }
+        faces.forEach { tally?.countReturned(it.boundingBox.width().toFloat() / bitmap.width) }
+        return faces.mapNotNull { it.toDetected(bitmap, timestampMs, tally) }
     }
 
-    private fun Face.toDetected(bitmap: Bitmap, timestampMs: Long): DetectedFace? {
+    private fun Face.toDetected(
+        bitmap: Bitmap,
+        timestampMs: Long,
+        tally: RecallTally?,
+    ): DetectedFace? {
         val box = BoundingBox(
             left = boundingBox.left,
             top = boundingBox.top,
             width = boundingBox.width(),
             height = boundingBox.height(),
         )
-        if (box.width <= 0 || box.height <= 0) return null
+        if (box.width <= 0 || box.height <= 0) {
+            tally?.countDegenerateBox()
+            return null
+        }
 
         val sharpness = ImageAnalysis.laplacianVariance(bitmap, box)
-        if (sharpness < config.blurFloor) return null
+        if (sharpness < config.blurFloor) {
+            tally?.countBlurDrop()
+            return null
+        }
 
         val frameArea = bitmap.width.toFloat() * bitmap.height
         val margin = config.edgeMarginPx

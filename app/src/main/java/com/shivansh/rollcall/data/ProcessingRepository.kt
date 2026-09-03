@@ -10,6 +10,7 @@ import com.shivansh.rollcall.CrashReporter
 import com.shivansh.rollcall.data.detection.DetectedFace
 import com.shivansh.rollcall.data.detection.ImageAnalysis
 import com.shivansh.rollcall.data.detection.MlKitFaceDetector
+import com.shivansh.rollcall.data.detection.RecallTally
 import com.shivansh.rollcall.data.embedding.FaceEmbedder
 import com.shivansh.rollcall.data.video.FrameExtractor
 import com.shivansh.rollcall.domain.clustering.AgglomerativeClusterer
@@ -61,6 +62,7 @@ class ProcessingRepository @Inject constructor(
         val previews = mutableListOf<Bitmap>()
         var previousThumb: IntArray? = null
         var scanned = 0
+        val tally = RecallTally()
 
         frames.frames(uri).collect { frame ->
             val thumb = ImageAnalysis.thumbnail(frame.bitmap)
@@ -71,9 +73,16 @@ class ProcessingRepository @Inject constructor(
             }
             previousThumb = thumb
 
-            val faces = detector.detect(frame.bitmap, frame.timestampMs)
+            // Every face in the frame, not just the first: two people on screen
+            // together is the case the appearance counts turn on, and their
+            // co-occurrence is also a hard constraint for the clusterer.
+            val faces = detector.detect(frame.bitmap, frame.timestampMs, tally)
             for (face in faces) {
-                val embedding = embedder.embed(frame.bitmap, face) ?: continue
+                val embedding = embedder.embed(frame.bitmap, face)
+                if (embedding == null) {
+                    tally.countEmbeddingDrop()
+                    continue
+                }
                 detected += face.copy(sample = face.sample.copy(embedding = embedding))
             }
 
@@ -105,6 +114,7 @@ class ProcessingRepository @Inject constructor(
 
         emit(ProcessingState.Working(Stage.GroupingPeople, DETECT_SHARE, scanned, detected.size, previews.toList()))
         trace("detected ${detected.size} faces over $scanned frames, ${cuts.size} cuts")
+        trace(tally.summary())
 
         val builder = TrackletBuilder(frameIntervalMs = config.frameIntervalMs)
         val tracklets = builder.build(detected.map { it.sample }, cuts)

@@ -23,8 +23,17 @@ data class PipelineConfig(
      */
     val blurFloor: Double = 3.0,
 
-    /** Ignore faces smaller than this fraction of the frame width. */
-    val minFaceRatio: Float = 0.10f,
+    /**
+     * Smallest face the detector will report, as a fraction of frame width.
+     *
+     * This is a recall floor, not a quality one: ML Kit never reports a face
+     * below it, so nothing downstream can recover one. Two people sharing a
+     * frame each take up far less width than a single speaker, so a floor set
+     * for the one-person case silently loses the two-person case - which is
+     * exactly where the appearance counts are decided. Small faces are still
+     * scored down by sizeRatio, so letting them through costs accuracy nothing.
+     */
+    val minFaceRatio: Float = 0.05f,
 
     /** A box within this many pixels of the edge counts as clipped. */
     val edgeMarginPx: Int = 4,

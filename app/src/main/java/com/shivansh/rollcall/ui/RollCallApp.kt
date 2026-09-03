@@ -62,6 +62,7 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsState()
     val collage by viewModel.collage.collectAsState()
     val portraits by viewModel.portraits.collectAsState()
+    val showLabels by viewModel.showLabels.collectAsState()
     val context = LocalContext.current
 
     var showCollage by remember { mutableStateOf(false) }
@@ -113,6 +114,8 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
                 Screen.Collage -> CollageScreen(
                     collage = collage,
                     savedMessage = savedMessage,
+                    showLabels = showLabels,
+                    onShowLabelsChange = viewModel::setShowLabels,
                     onSave = {
                         viewModel.save { uri ->
                             savedMessage = if (uri != null) {

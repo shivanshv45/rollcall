@@ -3,6 +3,7 @@ package com.shivansh.rollcall.ui.collage
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,11 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -37,6 +41,8 @@ import com.shivansh.rollcall.ui.theme.TextSecondary
 fun CollageScreen(
     collage: Bitmap?,
     savedMessage: String?,
+    showLabels: Boolean,
+    onShowLabelsChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
     onBack: () -> Unit,
@@ -82,6 +88,34 @@ fun CollageScreen(
         }
 
         Spacer(Modifier.height(Space.md))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(Radius.chip)
+                .clickable(enabled = collage != null) { onShowLabelsChange(!showLabels) }
+                .padding(vertical = Space.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Show names and counts", color = Color.White, fontSize = 15.sp)
+                Text(
+                    if (showLabels) "Tap for a plain photo grid" else "Tap to label each person",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                )
+            }
+            Switch(
+                checked = showLabels,
+                onCheckedChange = onShowLabelsChange,
+                enabled = collage != null,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Magenta,
+                ),
+            )
+        }
+
+        Spacer(Modifier.height(Space.sm))
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Space.sm),

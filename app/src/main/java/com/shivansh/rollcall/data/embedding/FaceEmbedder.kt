@@ -41,7 +41,6 @@ class FaceEmbedder @Inject constructor(
 
     fun embed(frame: Bitmap, face: DetectedFace): FloatArray? {
         val aligned = FaceAligner.align(frame, face.sample.box, face.leftEye, face.rightEye)
-            ?: return null
         writeInput(aligned)
         aligned.recycle()
         interpreter.run(input, output)

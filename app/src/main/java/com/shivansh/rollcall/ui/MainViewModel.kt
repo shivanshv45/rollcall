@@ -36,11 +36,15 @@ class MainViewModel @Inject constructor(
     private val _collage = MutableStateFlow<Bitmap?>(null)
     val collage: StateFlow<Bitmap?> = _collage.asStateFlow()
 
+    private val _showLabels = MutableStateFlow(true)
+    val showLabels: StateFlow<Boolean> = _showLabels.asStateFlow()
+
     /** Representative shot per person id, filled in once the results land. */
     private val _portraits = MutableStateFlow<Map<Int, Bitmap>>(emptyMap())
     val portraits: StateFlow<Map<Int, Bitmap>> = _portraits.asStateFlow()
 
     private var running: Job? = null
+    private var collageJob: Job? = null
     private var source: Uri? = null
 
     fun process(uri: Uri) {
@@ -86,12 +90,20 @@ class MainViewModel @Inject constructor(
      * cover it. Decoding a full-resolution frame per person can fail on a low
      * memory device, and an escape here takes the whole app down.
      */
+    /** Re-renders with labels on or off; the collage is a bitmap, so it has to be redrawn. */
+    fun setShowLabels(show: Boolean) {
+        if (_showLabels.value == show) return
+        _showLabels.value = show
+        buildCollage()
+    }
+
     fun buildCollage() {
         val done = _state.value as? ProcessingState.Done ?: return
         val uri = source ?: return
-        viewModelScope.launch {
+        collageJob?.cancel()
+        collageJob = viewModelScope.launch {
             _collage.value = try {
-                collages.render(uri, done.result)
+                collages.render(uri, done.result, _showLabels.value)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
@@ -136,6 +148,8 @@ class MainViewModel @Inject constructor(
     fun reset() {
         running?.cancel()
         running = null
+        collageJob?.cancel()
+        collageJob = null
         source = null
         _collage.value = null
         releasePortraits()

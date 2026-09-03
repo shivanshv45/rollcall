@@ -30,7 +30,16 @@ class CollageRenderer @Inject constructor(
     private val config: PipelineConfig,
 ) {
 
-    suspend fun render(uri: Uri, analysis: VideoAnalysis): Bitmap = withContext(Dispatchers.Default) {
+    /**
+     * @param showLabels draws each person's letter and appearance count over
+     *   their tile. Off gives a plain photo grid, which is what people want when
+     *   they are sharing the picture rather than reporting the numbers.
+     */
+    suspend fun render(
+        uri: Uri,
+        analysis: VideoAnalysis,
+        showLabels: Boolean = true,
+    ): Bitmap = withContext(Dispatchers.Default) {
         val canvasBitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(canvasBitmap)
         drawBackground(canvas)
@@ -43,12 +52,12 @@ class CollageRenderer @Inject constructor(
         people.forEachIndexed { index, person ->
             val rect = tiles.getOrNull(index) ?: return@forEachIndexed
             val portrait = portrait(uri, person)
-            drawTile(canvas, rect, portrait, person)
+            drawTile(canvas, rect, portrait, person, showLabels)
             portrait?.recycle()
         }
 
         drawHeader(canvas)
-        drawFooter(canvas, analysis)
+        if (showLabels) drawFooter(canvas, analysis)
         canvasBitmap
     }
 
@@ -146,7 +155,13 @@ class CollageRenderer @Inject constructor(
         return out
     }
 
-    private fun drawTile(canvas: Canvas, rect: RectF, portrait: Bitmap?, person: Person) {
+    private fun drawTile(
+        canvas: Canvas,
+        rect: RectF,
+        portrait: Bitmap?,
+        person: Person,
+        showLabels: Boolean,
+    ) {
         val path = android.graphics.Path().apply {
             addRoundRect(rect, TILE_RADIUS, TILE_RADIUS, android.graphics.Path.Direction.CW)
         }
@@ -157,6 +172,11 @@ class CollageRenderer @Inject constructor(
             canvas.drawBitmap(portrait, null, centerCrop(portrait, rect), imagePaint)
         } else {
             canvas.drawRect(rect, Paint().apply { color = Color.parseColor("#16161C") })
+        }
+
+        if (!showLabels) {
+            canvas.restore()
+            return
         }
 
         // Scrim so the label stays readable over a bright frame.
