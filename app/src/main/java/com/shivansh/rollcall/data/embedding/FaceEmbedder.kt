@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Rect
 import com.shivansh.rollcall.data.detection.DetectedFace
 import com.shivansh.rollcall.domain.model.l2Normalized
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +41,9 @@ class FaceEmbedder @Inject constructor(
         .allocateDirect(SIZE * SIZE * CHANNELS * Float.SIZE_BYTES)
         .order(ByteOrder.nativeOrder())
     private val output = Array(1) { FloatArray(DIMENSIONS) }
+
+    // Reused across every face; a fresh one per call was 50KB of GC churn each time.
+    private val pixels = IntArray(SIZE * SIZE)
 
     fun embed(frame: Bitmap, face: DetectedFace): FloatArray? {
         val aligned = align(frame, face) ?: return null
@@ -84,23 +88,27 @@ class FaceEmbedder @Inject constructor(
             }
             canvas.drawBitmap(frame, matrix, paint)
         } else {
+            // Drawn straight from the source rect - taking an intermediate crop
+            // with createBitmap risks getting the frame itself back and then
+            // recycling the caller's bitmap.
             val box = face.sample.box
             val margin = (box.width * FALLBACK_MARGIN).toInt()
-            val x = (box.left - margin).coerceAtLeast(0)
-            val y = (box.top - margin).coerceAtLeast(0)
-            val w = (box.width + margin * 2).coerceAtMost(frame.width - x)
-            val h = (box.height + margin * 2).coerceAtMost(frame.height - y)
-            if (w <= 0 || h <= 0) return null
-            val crop = Bitmap.createBitmap(frame, x, y, w, h)
-            canvas.drawBitmap(crop, null, android.graphics.Rect(0, 0, SIZE, SIZE), paint)
-            crop.recycle()
+            val srcLeft = (box.left - margin).coerceIn(0, frame.width - 1)
+            val srcTop = (box.top - margin).coerceIn(0, frame.height - 1)
+            val srcRight = (box.right + margin).coerceIn(srcLeft + 1, frame.width)
+            val srcBottom = (box.bottom + margin).coerceIn(srcTop + 1, frame.height)
+            canvas.drawBitmap(
+                frame,
+                Rect(srcLeft, srcTop, srcRight, srcBottom),
+                Rect(0, 0, SIZE, SIZE),
+                paint,
+            )
         }
         return out
     }
 
     private fun writeInput(bitmap: Bitmap) {
         input.rewind()
-        val pixels = IntArray(SIZE * SIZE)
         bitmap.getPixels(pixels, 0, SIZE, 0, 0, SIZE, SIZE)
         for (p in pixels) {
             input.putFloat(((p shr 16 and 0xFF) - MEAN) / STD)
