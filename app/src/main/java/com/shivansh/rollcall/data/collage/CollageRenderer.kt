@@ -38,14 +38,16 @@ class CollageRenderer @Inject constructor(
 
         val people = analysis.people
         val tiles = layoutFor(people.size)
-        val portraits = people.map { portrait(uri, it) }
 
+        // One portrait in memory at a time. Decoding them all first put a
+        // 1080x1920 frame per person on the heap at once, which is where a large
+        // cast would actually run out.
         people.forEachIndexed { index, person ->
-            tiles.getOrNull(index)?.let { rect ->
-                drawTile(canvas, rect, portraits[index], person)
-            }
+            val rect = tiles.getOrNull(index) ?: return@forEachIndexed
+            val portrait = portrait(uri, person)
+            drawTile(canvas, rect, portrait, person)
+            portrait?.recycle()
         }
-        portraits.forEach { it?.recycle() }
 
         drawHeader(canvas)
         drawFooter(canvas, analysis)
@@ -147,14 +149,22 @@ class CollageRenderer @Inject constructor(
         val x = (centerX - cropW / 2).coerceIn(0f, (frame.width - cropW).coerceAtLeast(0f))
         val y = (centerY - cropH / 2).coerceIn(0f, (frame.height - cropH).coerceAtLeast(0f))
 
-        val out = Bitmap.createBitmap(
+        val left = x.roundToInt().coerceIn(0, frame.width - 1)
+        val top = y.roundToInt().coerceIn(0, frame.height - 1)
+        val right = (left + cropW.roundToInt()).coerceIn(left + 1, frame.width)
+        val bottom = (top + cropH.roundToInt()).coerceIn(top + 1, frame.height)
+
+        // Drawn into a new bitmap rather than cropped in place: createBitmap can
+        // hand back the source when the crop covers it, and the source is
+        // recycled on the next line.
+        val out = Bitmap.createBitmap(right - left, bottom - top, Bitmap.Config.ARGB_8888)
+        Canvas(out).drawBitmap(
             frame,
-            x.roundToInt().coerceIn(0, frame.width - 1),
-            y.roundToInt().coerceIn(0, frame.height - 1),
-            cropW.roundToInt().coerceIn(1, frame.width - x.roundToInt()),
-            cropH.roundToInt().coerceIn(1, frame.height - y.roundToInt()),
+            Rect(left, top, right, bottom),
+            Rect(0, 0, right - left, bottom - top),
+            imagePaint,
         )
-        if (out !== frame) frame.recycle()
+        frame.recycle()
         return out
     }
 

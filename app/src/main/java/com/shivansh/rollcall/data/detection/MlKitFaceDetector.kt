@@ -11,9 +11,11 @@ import com.shivansh.rollcall.domain.model.FaceSample
 import com.shivansh.rollcall.domain.model.PipelineConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+@Singleton
 class MlKitFaceDetector @Inject constructor(
     private val config: PipelineConfig,
 ) : AutoCloseable {

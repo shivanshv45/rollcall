@@ -1,6 +1,9 @@
 package com.shivansh.rollcall.data
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.util.Log
 import com.shivansh.rollcall.data.detection.DetectedFace
@@ -22,6 +25,7 @@ import com.shivansh.rollcall.domain.segmentation.AppearanceSegmenter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
@@ -50,7 +54,10 @@ class ProcessingRepository @Inject constructor(
         }
 
         val expectedFrames = (duration / config.frameIntervalMs).toInt().coerceAtLeast(1)
-        val detected = mutableListOf<Pair<DetectedFace, Bitmap>>()
+
+        // Only the embedding vectors are kept. Holding a crop per face was what
+        // put ~67MB of bitmaps on the heap and killed the app mid-run.
+        val detected = mutableListOf<DetectedFace>()
         val cuts = mutableListOf<Long>()
         val previews = mutableListOf<Bitmap>()
         var previousThumb: IntArray? = null
@@ -68,20 +75,23 @@ class ProcessingRepository @Inject constructor(
             val faces = detector.detect(frame.bitmap, frame.timestampMs)
             for (face in faces) {
                 val embedding = embedder.embed(frame.bitmap, face) ?: continue
-                detected += face.copy(sample = face.sample.copy(embedding = embedding)) to
-                    cropPreview(frame.bitmap, face)
+                detected += face.copy(sample = face.sample.copy(embedding = embedding))
+            }
+
+            // Previews are decoration for the wait. Allocate only the few that
+            // are actually shown, at thumbnail size, and never after that.
+            if (previews.size < PREVIEW_LIMIT) {
+                faces.firstOrNull()?.let { previews += previewOf(frame.bitmap, it) }
             }
 
             scanned++
-            if (previews.size < PREVIEW_LIMIT && faces.isNotEmpty()) {
-                previews += detected.last().second
-            }
             frame.bitmap.recycle()
 
             emit(
                 ProcessingState.Working(
-                    stage = if (scanned < expectedFrames) Stage.FindingFaces else Stage.GroupingPeople,
-                    progress = (scanned.toFloat() / expectedFrames).coerceIn(0f, DETECT_SHARE),
+                    stage = Stage.FindingFaces,
+                    progress = (scanned.toFloat() / expectedFrames * DETECT_SHARE)
+                        .coerceIn(0f, DETECT_SHARE),
                     framesScanned = scanned,
                     facesFound = detected.size,
                     previews = previews.toList(),
@@ -96,7 +106,7 @@ class ProcessingRepository @Inject constructor(
 
         emit(ProcessingState.Working(Stage.GroupingPeople, DETECT_SHARE, scanned, detected.size, previews.toList()))
 
-        val samples = detected.map { it.first.sample }
+        val samples = detected.map { it.sample }
         val tracklets = buildTracklets(samples, cuts)
         val labels = AgglomerativeClusterer(
             coreThreshold = config.coreThreshold,
@@ -134,6 +144,22 @@ class ProcessingRepository @Inject constructor(
             "from $scanned frames in ${System.currentTimeMillis() - started}ms")
 
         emit(ProcessingState.Done(VideoAnalysis(people, duration)))
+    }.catch { error ->
+        // Cancellation is the user pressing Cancel, not a failure.
+        if (error is CancellationException) throw error
+        Log.e(TAG, "processing failed", error)
+        emit(
+            ProcessingState.Failed(
+                when (error) {
+                    is OutOfMemoryError -> Failure.Unexpected(
+                        "Ran out of memory on this video. Try a shorter clip."
+                    )
+                    else -> Failure.Unexpected(
+                        error.message ?: "Something went wrong while processing."
+                    )
+                }
+            )
+        )
     }.flowOn(Dispatchers.Default)
 
     /**
@@ -148,13 +174,14 @@ class ProcessingRepository @Inject constructor(
      * and appearance as the fallback, because the id does not survive a cut.
      */
     private fun buildTracklets(samples: List<FaceSample>, cuts: List<Long>): List<Tracklet> {
+        val cutTimes = cuts.toHashSet()
         val byTime = samples.groupBy { it.timestampMs }.toSortedMap()
         val open = mutableListOf<MutableList<FaceSample>>()
         val closed = mutableListOf<List<FaceSample>>()
         val step = config.frameIntervalMs
 
         for ((time, atTime) in byTime) {
-            val isCut = time in cuts
+            val isCut = time in cutTimes
             val unclaimed = atTime.toMutableList()
             val carried = mutableListOf<MutableList<FaceSample>>()
 
@@ -176,7 +203,7 @@ class ProcessingRepository @Inject constructor(
                 }
             }
 
-            closed += open.filter { it !in carried }
+            closed += open.filter { track -> carried.none { it === track } }
             open.clear()
             open += carried
             open += unclaimed.map { mutableListOf(it) }
@@ -210,20 +237,39 @@ class ProcessingRepository @Inject constructor(
         return CosineDistance.between(x, y)
     }
 
-    private fun cropPreview(frame: Bitmap, face: DetectedFace): Bitmap {
+    /**
+     * Small square crop for the progress strip.
+     *
+     * Drawn into a fresh bitmap rather than taken with Bitmap.createBitmap(src,
+     * ...), which hands back the source itself when the crop covers the whole
+     * frame - and the caller recycles that frame immediately afterwards, so the
+     * UI would end up drawing a recycled bitmap.
+     */
+    private fun previewOf(frame: Bitmap, face: DetectedFace): Bitmap {
         val box = face.sample.box
         val margin = (box.width * PREVIEW_MARGIN).toInt()
-        val x = (box.left - margin).coerceAtLeast(0)
-        val y = (box.top - margin).coerceAtLeast(0)
-        val w = (box.width + margin * 2).coerceAtMost(frame.width - x)
-        val h = (box.height + margin * 2).coerceAtMost(frame.height - y)
-        return Bitmap.createBitmap(frame, x, y, w.coerceAtLeast(1), h.coerceAtLeast(1))
+        val left = (box.left - margin).coerceIn(0, frame.width - 1)
+        val top = (box.top - margin).coerceIn(0, frame.height - 1)
+        val right = (box.right + margin).coerceIn(left + 1, frame.width)
+        val bottom = (box.bottom + margin).coerceIn(top + 1, frame.height)
+
+        val out = Bitmap.createBitmap(PREVIEW_PX, PREVIEW_PX, Bitmap.Config.ARGB_8888)
+        Canvas(out).drawBitmap(
+            frame,
+            Rect(left, top, right, bottom),
+            Rect(0, 0, PREVIEW_PX, PREVIEW_PX),
+            Paint(Paint.FILTER_BITMAP_FLAG),
+        )
+        return out
     }
 
     private companion object {
         const val TAG = "RollCall"
         const val PREVIEW_LIMIT = 12
         const val PREVIEW_MARGIN = 0.35f
+
+        /** Displayed at 56dp, so anything larger is wasted memory. */
+        const val PREVIEW_PX = 160
         const val CLIPPED_PENALTY = 0.25f
 
         /** Detection is most of the work; the rest of the bar covers grouping. */
