@@ -58,7 +58,20 @@ data class Tracklet(
             for (i in 0 until dim) sum[i] += e[i] * q
             weight += q
         }
-        for (i in 0 until dim) sum[i] /= weight
+        // Every sample scoring zero is rare but possible, and dividing by that
+        // weight yields a zero vector whose normalisation is NaN - which then
+        // makes every distance NaN and silently wrecks the clustering. An
+        // unweighted mean still says where the face sits.
+        if (weight <= 0f) {
+            java.util.Arrays.fill(sum, 0f)
+            for (s in samples) {
+                val e = s.embedding!!
+                for (i in 0 until dim) sum[i] += e[i]
+            }
+            for (i in 0 until dim) sum[i] /= samples.size
+        } else {
+            for (i in 0 until dim) sum[i] /= weight
+        }
         sum.l2Normalized()
     }
 
