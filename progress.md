@@ -14,7 +14,7 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] LiteRT working on desktop for prototyping
 
 ### Layer 0 — Toolchain
-- [ ] 0.1 Android command-line SDK installed
+- [x] 0.1 Android SDK installed locally in `android-sdk/` (platform-35, build-tools 35)
 - [ ] 0.2 Phone in USB-debugging mode, `adb devices` sees it
 
 ### Layer 1 — Prototype (the 50%)
@@ -26,16 +26,16 @@ Deadline: **Sun 6 Sep 2026, 11:59 PM IST**
 - [x] 1.6 Segmentation - **Sample 1 = 5 people / 20 appearances / 4 each**
 
 ### Layer 2 — Skeleton
-- [ ] 2.1 Gradle scaffold builds + installs
-- [ ] 2.2 Theme + design tokens
-- [ ] 2.3 Domain models + `PipelineConfig`
+- [x] 2.1 Gradle scaffold - **BUILD SUCCESSFUL**, 77MB debug APK produced
+- [x] 2.2 Theme + design tokens (Color/Type/Theme)
+- [x] 2.3 Domain models + `PipelineConfig` with every tuned constant
 
 ### Layer 3 — Pipeline (Kotlin)
-- [ ] 3.1 Clusterer + JVM tests
-- [ ] 3.2 Quality scorer + tests
-- [ ] 3.3 Segmenter + tests
-- [ ] 3.4 Frame extractor
-- [ ] 3.5 Detector + embedder
+- [x] 3.1 Clusterer + JVM tests (8 tests: chaining, cannot-link, discovery)
+- [x] 3.2 Quality scorer + tests (10 tests: weights, monotonicity, range)
+- [x] 3.3 Segmenter + tests (12 tests incl. the brief's 1.4s example)
+- [x] 3.4 Frame extractor (half-res, OPTION_CLOSEST, cancellable)
+- [x] 3.5 Detector + embedder written (eye-line alignment, MobileFaceNet)
 - [ ] 3.6 Repository wired end-to-end
 - [ ] 3.7 ⭐ On-device threshold re-validation
 
@@ -105,3 +105,8 @@ were rejected:
 
 Left as-is deliberately. Tuning further against clips whose true counts are unpublished would
 be over-fitting - exactly what the brief warns against.
+
+## Test status
+**30/30 JVM unit tests passing.** Run with `./gradlew testDebugUnitTest`.
+The domain layer has no Android imports, so the clustering, segmentation and quality
+logic - the 50%-weighted part - is testable without a device or emulator.

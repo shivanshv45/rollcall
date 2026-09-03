@@ -1,0 +1,107 @@
+package com.shivansh.rollcall.domain
+
+import com.shivansh.rollcall.domain.clustering.AgglomerativeClusterer
+import com.shivansh.rollcall.domain.clustering.CosineDistance
+import com.shivansh.rollcall.domain.model.l2Normalized
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class AgglomerativeClustererTest {
+
+    private fun clusterer(core: Double = 0.38, assign: Double = 0.84, minCore: Int = 3) =
+        AgglomerativeClusterer(core, assign, minCore)
+
+    private fun distinctGroups(perGroup: Int, groups: Int): List<FloatArray> =
+        (0 until groups).flatMap { g ->
+            (0 until perGroup).map { i ->
+                FloatArray(groups) { axis -> if (axis == g) 1f else 0f }
+                    .also { it[g] += i * 0.01f }
+                    .l2Normalized()
+            }
+        }
+
+    @Test
+    fun `finds the right number of well-separated groups`() {
+        val labels = clusterer().cluster(
+            CosineDistance.matrix(distinctGroups(perGroup = 4, groups = 3)),
+            emptySet(),
+        )
+        assertEquals(3, labels.toSet().size)
+    }
+
+    @Test
+    fun `count is discovered, not assumed`() {
+        for (expected in 1..5) {
+            val labels = clusterer().cluster(
+                CosineDistance.matrix(distinctGroups(perGroup = 4, groups = expected)),
+                emptySet(),
+            )
+            assertEquals("with $expected groups", expected, labels.toSet().size)
+        }
+    }
+
+    @Test
+    fun `average linkage resists chaining through a bridge point`() {
+        // Two tight groups plus one point sitting between them. Single linkage
+        // would merge everything through the bridge; average linkage should not.
+        val a = (0 until 4).map { floatArrayOf(1f, 0.02f * it, 0f).l2Normalized() }
+        val b = (0 until 4).map { floatArrayOf(0f, 0.02f * it, 1f).l2Normalized() }
+        val bridge = listOf(floatArrayOf(0.7f, 0f, 0.7f).l2Normalized())
+
+        val labels = clusterer().cluster(CosineDistance.matrix(a + b + bridge), emptySet())
+        assertNotEquals("bridge welded the groups together", 1, labels.toSet().size)
+    }
+
+    @Test
+    fun `cannot-link keeps co-occurring faces apart even when identical`() {
+        // Same vector twice: nothing but the constraint can separate them.
+        val identical = listOf(
+            floatArrayOf(1f, 0f, 0f).l2Normalized(),
+            floatArrayOf(1f, 0f, 0f).l2Normalized(),
+        )
+        val labels = clusterer(core = 0.9, assign = 0.9, minCore = 1)
+            .cluster(CosineDistance.matrix(identical), setOf(0 to 1))
+        assertNotEquals(labels[0], labels[1])
+    }
+
+    @Test
+    fun `fragments are absorbed rather than reported as extra people`() {
+        val core = (0 until 4).map { floatArrayOf(1f, 0.01f * it, 0f).l2Normalized() }
+        // A single loose sample of the same person: outside the strict threshold,
+        // inside the relaxed one.
+        val fragment = listOf(floatArrayOf(0.80f, 0.60f, 0f).l2Normalized())
+
+        val labels = clusterer().cluster(CosineDistance.matrix(core + fragment), emptySet())
+        assertEquals(1, labels.toSet().size)
+    }
+
+    @Test
+    fun `labels are contiguous from zero`() {
+        val labels = clusterer().cluster(
+            CosineDistance.matrix(distinctGroups(perGroup = 3, groups = 4)),
+            emptySet(),
+        )
+        assertEquals((0 until labels.toSet().size).toSet(), labels.toSet())
+    }
+
+    @Test
+    fun `empty input is handled`() {
+        assertEquals(0, clusterer().cluster(emptyArray(), emptySet()).size)
+    }
+
+    @Test
+    fun `cosine distance behaves`() {
+        val a = floatArrayOf(1f, 0f, 0f)
+        val b = floatArrayOf(0f, 1f, 0f)
+        assertEquals(0.0, CosineDistance.between(a, a), 1e-6)
+        assertEquals(1.0, CosineDistance.between(a, b), 1e-6)
+        assertEquals(
+            CosineDistance.between(a, b),
+            CosineDistance.between(b, a),
+            1e-9,
+        )
+        assertTrue(CosineDistance.between(a, floatArrayOf(-1f, 0f, 0f)) > 1.9)
+    }
+}
