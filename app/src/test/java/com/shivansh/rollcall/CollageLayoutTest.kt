@@ -30,7 +30,11 @@ class CollageLayoutTest {
     private val headerHeight = 150f
     private val footerHeight = 120f
 
-    private fun layoutFor(count: Int): List<RectF> {
+    private fun layoutFor(
+        count: Int,
+        margin: Float = this.margin,
+        inset: Float = 0f,
+    ): List<RectF> {
         val left = margin
         val right = width - margin
         val top = headerHeight
@@ -86,6 +90,10 @@ class CollageLayoutTest {
             else -> {
                 val columns = 3
                 grid(columns, (count + columns - 1) / columns).take(count)
+            }
+        }.let { slots ->
+            if (inset <= 0f) slots else slots.map {
+                RectF(it.left + inset, it.top + inset, it.right - inset, it.bottom - inset)
             }
         }
     }
@@ -173,5 +181,60 @@ class CollageLayoutTest {
         assertEquals(1080, collage.width)
         assertEquals(1920, collage.height)
         assertFalse(collage.isRecycled)
+    }
+
+    /**
+     * The widest mat and margin any border asks for. Every style has to stay
+     * inside the same guarantees the plain layout does, or a frame could push a
+     * tile off the sheet or squeeze it below a usable size.
+     */
+    private val widestMargin = 64f
+    private val widestInset = 14f
+
+    @Test
+    fun `the widest frame still leaves every tile usable`() {
+        for (n in 1..12) {
+            val tiles = layoutFor(n, margin = widestMargin, inset = widestInset)
+            assertEquals("count $n", n, tiles.size)
+            for (tile in tiles) {
+                assertTrue("count $n width ${tile.width()}", tile.width() >= 100f)
+                assertTrue("count $n height ${tile.height()}", tile.height() >= 100f)
+            }
+        }
+    }
+
+    @Test
+    fun `the widest frame keeps tiles inside the safe area`() {
+        for (n in 1..12) {
+            for (tile in layoutFor(n, margin = widestMargin, inset = widestInset)) {
+                assertTrue("count $n left", tile.left >= widestMargin - 0.01f)
+                assertTrue("count $n top", tile.top >= headerHeight - 0.01f)
+                assertTrue("count $n right", tile.right <= width - widestMargin + 0.01f)
+                assertTrue("count $n bottom", tile.bottom <= height - footerHeight + 0.01f)
+            }
+        }
+    }
+
+    @Test
+    fun `a mat only shrinks tiles, it never moves them apart or overlaps them`() {
+        for (n in 1..12) {
+            val plain = layoutFor(n)
+            val matted = layoutFor(n, inset = widestInset)
+            for (i in plain.indices) {
+                assertTrue(
+                    "count $n tile $i should sit inside its slot",
+                    matted[i].left >= plain[i].left && matted[i].top >= plain[i].top &&
+                        matted[i].right <= plain[i].right && matted[i].bottom <= plain[i].bottom,
+                )
+            }
+            for (i in matted.indices) {
+                for (j in i + 1 until matted.size) {
+                    assertFalse(
+                        "count $n: tile $i overlaps $j",
+                        matted[i].overlaps(matted[j]),
+                    )
+                }
+            }
+        }
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.shivansh.rollcall.domain.model.CollageBorder
 import com.shivansh.rollcall.ui.components.PrimaryButton
 import com.shivansh.rollcall.ui.components.SecondaryButton
 import com.shivansh.rollcall.ui.components.TextAction
@@ -42,6 +43,9 @@ fun CollageScreen(
     collage: Bitmap?,
     savedMessage: String?,
     showLabels: Boolean,
+    border: CollageBorder,
+    borderThumbnails: List<Bitmap>,
+    onBorderChange: (CollageBorder) -> Unit,
     onShowLabelsChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
@@ -87,7 +91,17 @@ fun CollageScreen(
             Text(it, color = TextSecondary, fontSize = 14.sp)
         }
 
-        Spacer(Modifier.height(Space.md))
+        Spacer(Modifier.height(Space.sm))
+        BorderPicker(
+            borders = CollageBorder.ALL,
+            selected = border,
+            thumbnails = borderThumbnails,
+            onSelect = onBorderChange,
+            enabled = collage != null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(Space.xs))
         Row(
             Modifier
                 .fillMaxWidth()

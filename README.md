@@ -49,6 +49,9 @@ video
   |   a solo frame where there is one, else cropped out of a shared frame
   |   re-detects at output size to check nobody else is in the crop
   v
+[ frame the collage ]                       CollageRenderer
+  |   portraits cut once, then repainted in any of six styles
+  v
 results + collage
 ```
 
@@ -80,7 +83,7 @@ edge so it holds on footage it was not tuned against.
 | Face detection | ML Kit Face Detection 16.1.7 |
 | Face embedding | MobileFaceNet, 192-d, via LiteRT 1.0.1 |
 | Clustering | Average-linkage agglomerative, written from scratch |
-| Tests | JUnit 4 + Robolectric, 134 tests |
+| Tests | JUnit 4 + Robolectric, 147 tests |
 | Min SDK | 26 |
 
 ### The embedding model
@@ -115,7 +118,7 @@ On Windows, escape the backslashes: `sdk.dir=C\:\\Users\\you\\android-sdk`
 Then:
 
 ```bash
-./gradlew testDebugUnitTest      # 134 tests, no device needed
+./gradlew testDebugUnitTest      # 147 tests, no device needed
 ./gradlew assembleDebug          # APK at app/build/outputs/apk/debug/
 ```
 
@@ -154,6 +157,13 @@ tuning happened first and the Kotlin port came after. It needs `opencv-python`,
 Faces are never cropped tight to the detected box. Tiles are re-decoded from the
 video at output size and cropped wide enough for head and shoulders, sitting
 slightly high so they do not read like mugshots.
+
+The finished collage can be framed in one of six styles, chosen from a strip of
+live previews under it. A frame is only ever paint around the tiles, so the
+portraits are cut once and every style after that is a repaint rather than
+another pass over the video. The cost is holding a portrait per person in memory
+while that screen is open; they are recycled when it closes. Adding a style is
+one entry in `CollageBorder.ALL` and nothing else.
 
 Processing runs entirely off the main thread on `Dispatchers.Default`, and
 cancelling the screen cancels the work.

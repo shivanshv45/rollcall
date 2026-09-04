@@ -12,6 +12,7 @@ import android.content.Intent
 import com.shivansh.rollcall.data.collage.CollageRenderer
 import com.shivansh.rollcall.data.collage.CollageStore
 import com.shivansh.rollcall.data.video.PortraitLoader
+import com.shivansh.rollcall.domain.model.CollageBorder
 import com.shivansh.rollcall.domain.model.ProcessingState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -39,18 +40,29 @@ class MainViewModel @Inject constructor(
     private val _showLabels = MutableStateFlow(true)
     val showLabels: StateFlow<Boolean> = _showLabels.asStateFlow()
 
+    private val _border = MutableStateFlow(CollageBorder.DEFAULT)
+    val border: StateFlow<CollageBorder> = _border.asStateFlow()
+
+    /** One small preview per border, in [CollageBorder.ALL] order. */
+    private val _borderThumbnails = MutableStateFlow<List<Bitmap>>(emptyList())
+    val borderThumbnails: StateFlow<List<Bitmap>> = _borderThumbnails.asStateFlow()
+
     /** Representative shot per person id, filled in once the results land. */
     private val _portraits = MutableStateFlow<Map<Int, Bitmap>>(emptyMap())
     val portraits: StateFlow<Map<Int, Bitmap>> = _portraits.asStateFlow()
 
     private var running: Job? = null
     private var collageJob: Job? = null
+    private var thumbnailJob: Job? = null
+
+    /** The decoded portraits every border draws from. Released in [clearCollage]. */
+    private var sheet: CollageRenderer.Sheet? = null
     private var source: Uri? = null
 
     fun process(uri: Uri) {
         running?.cancel()
         source = uri
-        _collage.value = null
+        clearCollage()
         releasePortraits()
         running = viewModelScope.launch {
             repository.analyse(uri).collect { next ->
@@ -79,30 +91,106 @@ class MainViewModel @Inject constructor(
         _state.value = ProcessingState.Idle
     }
 
-    /**
-     * Runs on its own coroutine, so the pipeline's error handling does not cover
-     * it and an escaped throw would take the app down.
-     */
     /** The collage is a bitmap, so changing this means redrawing it. */
     fun setShowLabels(show: Boolean) {
         if (_showLabels.value == show) return
         _showLabels.value = show
-        buildCollage()
+        redraw()
+        buildThumbnails()
     }
 
+    /** Picking a border only repaints; the portraits it draws are already cut. */
+    fun setBorder(border: CollageBorder) {
+        if (_border.value == border) return
+        _border.value = border
+        redraw()
+    }
+
+    /**
+     * Decodes the portraits, then draws the collage and the picker's thumbnails.
+     *
+     * Safe to call again for the same run - the second call reuses the portraits
+     * rather than going back to the video.
+     */
     fun buildCollage() {
         val done = _state.value as? ProcessingState.Done ?: return
         val uri = source ?: return
+        if (sheet != null) {
+            redraw()
+            buildThumbnails()
+            return
+        }
         collageJob?.cancel()
         collageJob = viewModelScope.launch {
-            _collage.value = try {
-                collages.render(uri, done.result, _showLabels.value)
+            try {
+                sheet = collages.prepare(uri, done.result)
+                drawInto(_collage)
+                buildThumbnails()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
                 Log.e(TAG, "collage render failed", e)
                 CrashReporter.note("collage render failed: ${e.javaClass.simpleName}")
-                null
+                _collage.value = null
+            }
+        }
+    }
+
+    /**
+     * Repaints the preview in the current style.
+     *
+     * Runs on its own coroutine, so the pipeline's error handling does not cover
+     * it and an escaped throw would take the app down.
+     */
+    private fun redraw() {
+        if (sheet == null) return
+        collageJob?.cancel()
+        collageJob = viewModelScope.launch {
+            try {
+                drawInto(_collage)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.e(TAG, "collage redraw failed", e)
+            }
+        }
+    }
+
+    private suspend fun drawInto(target: MutableStateFlow<Bitmap?>) {
+        val ready = sheet ?: return
+        val next = collages.render(ready, _border.value, _showLabels.value)
+        // The outgoing bitmap may still be on screen for a frame, so it is left
+        // to the GC rather than recycled out from under the composition.
+        target.value = next
+    }
+
+    /**
+     * Renders the strip's previews, one per style.
+     *
+     * They are small and drawn from portraits already in memory, so the whole
+     * strip costs a fraction of one full-size render.
+     */
+    private fun buildThumbnails() {
+        val ready = sheet ?: return
+        thumbnailJob?.cancel()
+        thumbnailJob = viewModelScope.launch {
+            try {
+                _borderThumbnails.value = CollageBorder.ALL.map { style ->
+                    collages.render(
+                        sheet = ready,
+                        border = style,
+                        showLabels = _showLabels.value,
+                        width = CollageRenderer.THUMB_WIDTH,
+                        height = CollageRenderer.THUMB_HEIGHT,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // The picker falls back to plain swatches; the collage itself
+                // is unaffected.
+                Log.e(TAG, "border thumbnails failed", e)
+                _borderThumbnails.value = emptyList()
             }
         }
     }
@@ -141,12 +229,29 @@ class MainViewModel @Inject constructor(
     fun reset() {
         running?.cancel()
         running = null
-        collageJob?.cancel()
-        collageJob = null
         source = null
-        _collage.value = null
+        clearCollage()
         releasePortraits()
         _state.value = ProcessingState.Idle
+    }
+
+    /**
+     * Drops everything the collage screen built, portraits included.
+     *
+     * The sheet holds a full-size bitmap per person, so it is recycled here
+     * rather than left to the GC. The rendered collages are not: one may still
+     * be drawing on the way out, and they are replaced whole on the next build.
+     */
+    private fun clearCollage() {
+        collageJob?.cancel()
+        collageJob = null
+        thumbnailJob?.cancel()
+        thumbnailJob = null
+        sheet?.close()
+        sheet = null
+        _collage.value = null
+        _borderThumbnails.value = emptyList()
+        _border.value = CollageBorder.DEFAULT
     }
 
     /**
@@ -159,6 +264,8 @@ class MainViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        sheet?.close()
+        sheet = null
         releasePortraits()
     }
 

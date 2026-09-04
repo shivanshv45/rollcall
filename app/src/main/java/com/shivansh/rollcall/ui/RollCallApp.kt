@@ -61,6 +61,8 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
     val collage by viewModel.collage.collectAsState()
     val portraits by viewModel.portraits.collectAsState()
     val showLabels by viewModel.showLabels.collectAsState()
+    val border by viewModel.border.collectAsState()
+    val borderThumbnails by viewModel.borderThumbnails.collectAsState()
     val context = LocalContext.current
 
     var showCollage by remember { mutableStateOf(false) }
@@ -131,6 +133,9 @@ fun RollCallApp(viewModel: MainViewModel = hiltViewModel()) {
                     collage = collage,
                     savedMessage = savedMessage,
                     showLabels = showLabels,
+                    border = border,
+                    borderThumbnails = borderThumbnails,
+                    onBorderChange = viewModel::setBorder,
                     onShowLabelsChange = viewModel::setShowLabels,
                     onSave = {
                         viewModel.save { uri ->
