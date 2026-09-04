@@ -45,8 +45,9 @@ video
 [ split into appearances ]                  AppearanceSegmenter
   |   a gap over 0.8s or a scene cut starts a new appearance
   v
-[ pick the best shot ]                      FaceQuality
-  |   sharpness, how front-on, eyes open, size, expression
+[ pick each person's shot ]                 PortraitPicker
+  |   a solo frame where there is one, else cropped out of a shared frame
+  |   re-detects at output size to check nobody else is in the crop
   v
 results + collage
 ```
@@ -59,9 +60,11 @@ per-frame noise and cuts the clustering input by about 10x.
 **Two faces in one frame are different people.** That is free ground truth, and the
 clusterer treats it as a hard constraint the embeddings cannot override.
 
-**Two clustering passes.** A strict pass builds confident identities. A looser second
-pass places leftovers, which are usually small or side-on faces from two-person
-shots. One threshold cannot do both jobs, because those distances do not overlap.
+**Three clustering passes.** A strict pass builds confident identities. A looser
+second pass folds leftovers into them, which are usually small or side-on faces
+from two-person shots. A third merges the leftovers among themselves, for someone
+who only ever appears in fragments and so has no strong cluster to join. One
+threshold cannot do all of that, because those distances do not overlap.
 
 **Thresholds were measured, not picked.** Every constant in `PipelineConfig` came
 from a sweep over the sample clips, and each sits mid-plateau rather than at an
@@ -77,12 +80,12 @@ edge so it holds on footage it was not tuned against.
 | Face detection | ML Kit Face Detection 16.1.7 |
 | Face embedding | MobileFaceNet, 192-d, via LiteRT 1.0.1 |
 | Clustering | Average-linkage agglomerative, written from scratch |
-| Tests | JUnit 4 + Robolectric, 96 tests |
+| Tests | JUnit 4 + Robolectric, 134 tests |
 | Min SDK | 26 |
 
 ### The embedding model
 
-`app/src/main/assets/mobilefacenet.tflite`, 5.2 MB, Apache 2.0.
+`app/src/main/assets/mobilefacenet.tflite`, 5.0 MB, Apache 2.0.
 
 Input `[1,112,112,3]` float32, normalised to `(px - 127.5) / 128`.
 Output `[1,192]` float32, L2-normalised before use.
@@ -112,7 +115,7 @@ On Windows, escape the backslashes: `sdk.dir=C\:\\Users\\you\\android-sdk`
 Then:
 
 ```bash
-./gradlew testDebugUnitTest      # 96 tests, no device needed
+./gradlew testDebugUnitTest      # 134 tests, no device needed
 ./gradlew assembleDebug          # APK at app/build/outputs/apk/debug/
 ```
 
